@@ -1,0 +1,15 @@
+# folder
+bin/*
+trash/
+log/
+obj/*
+.vscode/
+fig/
+# data related
+simu_ds/
+soil_moist/
+wind/
+
+
+*.ipynb
+*.sh
