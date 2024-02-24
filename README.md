@@ -12,56 +12,9 @@ Installation of MAGMA 2.6.0 and NLopt v2.7.1, please refer
   - MAGMA 2.6.0 and KBLAS-GPU
   - 1. Download https://icl.utk.edu/magma/downloads/ (Guidance) 
   - 2. Install guide, pleaes use intel MKL https://icl.utk.edu/projectsfiles/magma/doxygen/installing.html
-  - 3. For example,
-  ```
-   # load necessary modules
-   module load intel/2022
-   module load gcc/10.2.0
-   module load cuda/11.4
-   # specify the CUDA path
-   export CUDA_ROOT=$CUDA_HOME
-   export CUDADIR=$CUDA_HOME
-   export _CUB_DIR_=$CUDA_HOME
-   echo $MKLROOT
-   # download the MAGAMA 2.6.0
-   wget http://icl.utk.edu/projectsfiles/magma/downloads/magma-2.6.0.tar.gz
-   tar -xzf magma-2.6.0.tar.gz
-   cd magma-2.6.0
-   cp make.inc-examples/make.inc.mkl-gcc make.inc
-   # specify your arch of GPU, or Ampere, (Hopper for MAGMA 2.7.2 and later)
-   export GPU_TARGET=Volta
-   export _MAGMA_ROOT_=$(pwd)
-   make -j
-   # add the library path
-   export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/your-path/magma-2.6.0/lib
-   export LIBRARY_PATH=$LIBRARY_PATH:/your-path/magma-2.6.0/lib
-   # install the kblas-gpu
-   git clone https://github.com/ecrc/kblas-gpu.git
-   export _MAGMA_ROOT_=$(pwd)
-   make -j
-  ```
+  - 3. For example, `bash installExample.sh`
 
-<!-- Please be asured that all related libraries are well installed and their path included in the system PATH (LD_LIBRARY_PATH)
-
-```
-## PATH config (KBLAS) (the CUDA_ROOT may be empty for different system, please give a double check)
-export CUDA_HOME=$CUDA_ROOT
-export CUDADIR=$CUDA_HOME
-export _CUB_DIR_=$CUDA_HOME
-## MAGMA path added
-export _MAGMA_ROOT_=/your-path/magma-2.6.0
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/your-path/magma-2.6.0/lib
-export LIBRARY_PATH=$LIBRARY_PATH:/your-path/magma-2.6.0/lib
-export _KBLAS_ROOT_=/your-path/kblas-gpu-vecchia1
-``` -->
-
-   - Nlopt v2.7.1 (easy guidance)
-
-   ```
-   # if your server has installed the nlopt
-   module load nlopt
-   ```
-   https://nlopt.readthedocs.io/en/latest/NLopt_Installation/
+  - Nlopt v2.7.1 (easy guidance) https://nlopt.readthedocs.io/en/latest/NLopt_Installation/
 
 #### 2. Usage 
 

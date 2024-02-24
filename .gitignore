@@ -1,8 +1,8 @@
 # folder
-bin/*
+bin/test_dvecchia_batch.o
 trash/
 log/
-obj/*
+obj/*.o
 .vscode/
 fig/
 # data related
@@ -12,4 +12,5 @@ wind/
 
 
 *.ipynb
-*.sh
+test*
+real*
