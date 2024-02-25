@@ -1,9 +1,9 @@
 // /**
 //  *
-//  * Copyright (c) 2017-2023  King Abdullah University of Science and Technology
+//  * Copyright (c) 2024  King Abdullah University of Science and Technology
 //  * All rights reserved.
 //  *
-//  * ExaGeoStat is a software package provided by KAUST
+//  * FastVecchia is a software package provided by KAUST
 //  **/
 // /**
 //  *
@@ -11,11 +11,11 @@
 //  *
 //  * Generate covariance matrix of a set of locations in 2D using Matern kernel.
 //  *
-//  * @version 1.2.0
+//  * @version 1.0.0
 //  * @author Suhas Shankar
 //  * @author Mary Lai Salvana
 //  * @author Sameh Abdulah
-//  * @date 2022-11-09
+//  * @date 2024-02-25
 //  *
 //  **/
 #include <cstdio>

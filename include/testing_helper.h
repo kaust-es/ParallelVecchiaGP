@@ -1,10 +1,10 @@
 /**
- * @copyright (c) 2012- King Abdullah University of Science and
+ * @copyright (c) 2024- King Abdullah University of Science and
  *                      Technology (KAUST). All rights reserved.
  **/
 
 /**
- * @file testing/testing_helper.h
+ * @file testing_helper.h
 
  * KBLAS is a high performance CUDA library for subset of BLAS
  *    and LAPACK routines optimized for NVIDIA GPUs.
@@ -13,7 +13,7 @@
  * @version 3.0.0
  * @author Wajih Halim Boukaram
  * @author Ali Charara
- * @date 2018-11-14
+ * @date 2024-02-25
  **/
 
 #ifndef __TESTING_HELPER_H__

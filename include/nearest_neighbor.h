@@ -1,3 +1,24 @@
+/**
+ *
+ * Copyright (c) 2024 - ES group -  King Abdullah University of Science and Technology
+ * All rights reserved.
+ *
+ * FastVecchia is a software package provided by the ES group at KAUST
+ **/
+/**
+ *
+ * @file gpukernels.h
+ *
+ * Core functions header file.
+ *
+ * @version 1.0.0
+ *
+ * @author Qilong Pan
+ * @date 2024-02-25
+ *
+ **/
+
+
 #ifndef NEAREST_NEIGHBOR_H
 #define NEAREST_NEIGHBOR_H
 

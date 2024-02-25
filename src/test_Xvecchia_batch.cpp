@@ -1,19 +1,23 @@
 /**
- * @copyright (c) 2012- King Abdullah University of Science and
- *                      Technology (KAUST). All rights reserved.
- **/
-
-/**
- * @file testing/batch_triangular/test_Xtrsm_batch.cpp
-
- * KBLAS is a high performance CUDA library for subset of BLAS
- *    and LAPACK routines optimized for NVIDIA GPUs.
- * KBLAS is provided by KAUST.
  *
- * @version 3.0.0
- * @author Ali Charara
- * @date 2018-11-14
+ * Copyright (c) 2024 - ES group -  King Abdullah University of Science and Technology
+ * All rights reserved.
+ *
+ * FastVecchia is a software package provided by the ES group at KAUST
  **/
+/**
+ *
+ * @file gpukernels.h
+ *
+ * Core functions header file.
+ *
+ * @version 1.0.0
+ *
+ * @author Qilong Pan
+ * @date 2024-02-25
+ *
+ **/
+
 
 #include <stdio.h>
 #include <stdlib.h>
