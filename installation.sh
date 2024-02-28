@@ -22,5 +22,5 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/your-path/magma-2.6.0/lib
 export LIBRARY_PATH=$LIBRARY_PATH:/your-path/magma-2.6.0/lib
 # install the kblas-gpu
 git clone https://github.com/ecrc/kblas-gpu.git
-export _MAGMA_ROOT_=$(pwd)
+export _KBLAS_ROOT_=$(pwd)
 make -j
