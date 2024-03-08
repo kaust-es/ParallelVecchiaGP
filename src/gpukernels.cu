@@ -7,9 +7,9 @@
  **/
 /**
  *
- * @file ckernel.cpp
+ * @file gpukernels.cu
  *
- * Generate 2D locations.
+ * 
  *
  * @version 1.0.0
  *
