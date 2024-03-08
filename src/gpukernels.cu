@@ -1,3 +1,23 @@
+/**
+ *
+ * Copyright (c) 2014, King Abdullah University of Science and Technology
+ * All rights reserved.
+ *
+ * ParallelVecchiaGP is a software package provided by KAUST
+ **/
+/**
+ *
+ * @file ckernel.cpp
+ *
+ * Generate 2D locations.
+ *
+ * @version 1.0.0
+ *
+ * @author Qilong Pan
+ * @date 2024-03-08
+ *
+ **/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <cuda_runtime.h>
