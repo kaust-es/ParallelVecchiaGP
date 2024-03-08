@@ -1,9 +1,9 @@
 /**
  *
- * Copyright (c) 2017-2023  King Abdullah University of Science and Technology
+ * Copyright (c) 2024  King Abdullah University of Science and Technology
  * All rights reserved.
  *
- * ExaGeoStat is a software package provided by KAUST
+ * ParallelVecchiaGP is a software package provided by KAUST
  **/
 /**
  *
@@ -11,10 +11,10 @@
  *
  * Core functions header file.
  *
- * @version 1.2.0
+ * @version 1.0.0
  *
- * @author Sameh Abdulah
- * @date 2022-11-09
+ * @author Qilong Pan
+ * @date 2024-03-08
  *
  **/
 
