@@ -1,3 +1,22 @@
+/**
+ *
+ * Copyright (c) 2024  King Abdullah University of Science and Technology
+ * All rights reserved.
+ *
+ * ParallelVecchiaGP is a software package provided by KAUST
+ **/
+/**
+ *
+ * @file llg.h
+ *
+ * 
+ *
+ * @version 1.0.0
+ *
+ * @author Qilong Pan
+ * @date 2024-03-08
+ *
+ **/
 #ifndef LLG_H
 #define LLG_H
 
