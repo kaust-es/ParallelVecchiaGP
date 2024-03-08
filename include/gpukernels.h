@@ -1,3 +1,23 @@
+/**
+ *
+ * Copyright (c) 2024  King Abdullah University of Science and Technology
+ * All rights reserved.
+ *
+ * ParallelVecchiaGP is a software package provided by KAUST
+ **/
+/**
+ *
+ * @file gpukernels.h
+ *
+ * GPU Kernels header file.
+ *
+ * @version 1.0.0
+ *
+ * @author Qilong Pan
+ * @date 2024-03-08
+ *
+ **/
+
 // aux_operations.h
 #ifndef AUX_OPERATIONS_H
 #define AUX_OPERATIONS_H
