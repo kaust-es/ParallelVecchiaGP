@@ -1,3 +1,23 @@
+/**
+ *
+ * Copyright (c) 2024  King Abdullah University of Science and Technology
+ * All rights reserved.
+ *
+ * ParallelVecchiaGP is a software package provided by KAUST
+ **/
+/**
+ *
+ * @file vecchia_helper_c.h
+ *
+ * Vecchia helper header file.
+ *
+ * @version 1.0.0
+ *
+ * @author Qilong Pan
+ * @date 2024-03-08
+ *
+ **/
+
 #ifndef VECCHIA_HELPER_H
 #define VECCHIA_HELPER_H
 
