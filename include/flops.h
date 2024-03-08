@@ -1,15 +1,15 @@
 /**
- * @copyright (c) 2012- King Abdullah University of Science and
+ * @copyright (c) 2024- King Abdullah University of Science and
  *                      Technology (KAUST). All rights reserved.
  **/
 
 /**
  *
- * @copyright (c) 2009-2014 The University of Tennessee and The University
+ * @copyright (c) 2024 The University of Tennessee and The University
  *                          of Tennessee Research Foundation.
  *                          All rights reserved.
- * @copyright (c) 2012-2014 Inria. All rights reserved.
- * @copyright (c) 2012-2014 Bordeaux INP, CNRS (LaBRI UMR 5800), Inria, Univ. Bordeaux. All rights reserved.
+ * @copyright (c) 2024 Inria. All rights reserved.
+ * @copyright (c) 2024 Bordeaux INP, CNRS (LaBRI UMR 5800), Inria, Univ. Bordeaux. All rights reserved.
  *
  **/
 
@@ -20,11 +20,11 @@
  *
  * @version 1.0.0
  * @author Mathieu Faverge
- * @date 2018-11-14
+ * @date 2024-02-25
  *
  * @version 3.0.0
  * @author Ali Charara
- * @date 2018-11-14
+ * @date 2024-02-25
  **/
 
 /*

@@ -19,7 +19,7 @@ Below are two examples demonstrating the use of block Vecchia. Following these s
 `./bin/test_dvecchia_batch --help (-h)`
 
 1. Performance tests, such as monitoring the time or calculating the intermediate results in KL divergence,
-`./bin/test_dvecchia_batch --ikernel 1.5:0.1:0.5 --kernel univariate_matern_stationary_no_nugget --num_loc 20000 --perf --vecchia_cs 300 --vecchia_bc 1500 --knn --seed 0`
+`./bin/test_dvecchia_batch --ikernel 1.5:0.1:0.5 --kernel univariate_matern_stationary_no_nugget --num_loc 20000 --perf --vecchia_cs 300 --knn --seed 0`
 
 2. Real dataset.
 `./bin/test_dvecchia_batch --ikernel ?:?:? --kernel univariate_matern_stationary_no_nugget --num_loc 250000   --vecchia_cs 90 --knn --xy_path replace_your_location_path --obs_path replace your_observation_path`

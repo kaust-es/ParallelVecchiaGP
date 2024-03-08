@@ -9,7 +9,7 @@
  *
  * @file gpukernels.h
  *
- * GPU Kernels header file.
+ * Core functions header file.
  *
  * @version 1.0.0
  *
@@ -18,7 +18,6 @@
  *
  **/
 
-// aux_operations.h
 #ifndef AUX_OPERATIONS_H
 #define AUX_OPERATIONS_H
 

@@ -109,6 +109,9 @@ KBLAS_LIB=${_KBLAS_ROOT_}/lib/lib${LIB_KBLAS_NAME}.a
 OBJ_DIR=./obj
 BIN_DIR=./bin
 
+# Corrected directory creation using variables
+$(shell mkdir -p $(OBJ_DIR))
+$(shell mkdir -p $(BIN_DIR))
 
 _VECCHIA_TEST_?=TRUE
 # $(info $$_VECCHIA_TEST_ is [${_VECCHIA_TEST_}])
