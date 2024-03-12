@@ -1,6 +1,9 @@
 ## ParallelVecchiaGP
 The ParallelVecchiaGP initiative involves concurrently adapting the Vecchia approximation for Gaussian Processes (GP), using batched linear algebra solvers on GPUs for computation, i.e., KBLAS-GPU. This code is designed exclusively for GPU execution. It demonstrates impressive precision compared to the exact maximum likelihood estimates. In terms of KL divergence, the accuracy of ParallelVecchiaGP is notable, achieving levels between ***$`\boldsymbol{10^{-1}} `$ to $` \boldsymbol{10^{-3}}`$ with only 60 neighbors***. Furthermore, the program can efficiently handle up to 1 million locations on a single 32GB GPU.
 
+![](images/perf.jpg)
+
+
 #### 1. Installation Guidence
 
 Installation of MAGMA 2.6.0 and NLopt v2.7.1, please refer to:
