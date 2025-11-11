@@ -1,0 +1,25 @@
+Package: Vecchia
+Type: Package
+Title: Vecchia
+Version: 1.0.0
+Date: 2025-04-13
+Author: Qilong Pan[aut, cph], Sohayla Khaled [aut, cph], Mahmoud ElKarargy [aut, cph], Sameh Abdulah [cre, cph], KAUST King Abdullah University of Science and Technology [fnd, cph]
+Maintainer: Sameh Abdulah <sameh.abdulah@kaust.edu.sa>
+Description: Vecchia is a package for computing the Vecchia approximation of a Gaussian process. It is designed to be fast and memory efficient, and to work with both dense and sparse matrices.
+License: GPL (>= 3)
+Imports: methods, Rcpp (>= 1.0.9)
+Depends: R (>= 3.6.0)
+RoxygenNote: 7.2.3
+SystemRequirements: CMake (>= 3.19.4) , C++ (>= 11) , git (>= 2.0.0)
+NeedsCompilation: yes
+OS_type: unix
+Authors@R: c(
+    person("Mahmoud", "ElKarargy", role=c("aut", "cph"), email="mahmoud.elkarargy@brightskiesinc.com"),
+    person("Sohayla", "Khaled", role=c("aut"), email="sohayla.khaled@brightskiesinc.com"),
+    person("Qilong", "Pan", role=c("aut"), email="pan.stat.cs@gmail.com"),
+    person("Sameh", "Abdulah", role=c("cre"), email="sameh.abdulah@kaust.edu.sa"),
+    person("KAUST", "King Abdullah University of Science and Technology", role=c("fnd","cph")),
+    person("Brightskies", role=c("cph"))
+    )
+URL: https://github.com/kaust-es/ParallelVecchiaGP/
+BugReports: https://github.com/kaust-es/ParallelVecchiaGP/issues

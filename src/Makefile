@@ -1,17 +1,16 @@
-#WARNING: Don't invoke this file independently, must be included into parent folder makefile
 
-# testing_prec_def.h
-C_SRC_BATCH=
-C_SRC_BATCH+=		\
-	test_dvecchia_batch.c
-#	test_svecchia_batch.c	\
-#	test_zvecchia_batch.c	\
-#	test_cvecchia_batch.c
+# Copyright (c) 2017-2024 King Abdullah University of Science and Technology,
+# All rights reserved.
+# VecchiaGB is a software package, provided by STSDS group at King Abdullah University of Science and Technology (KAUST).
 
-$(OBJ_DIR)/test_%vecchia_batch.o: $(VECCHIA_SOURCE)/test_Xvecchia_batch.cpp
-	$(CXX) $(COPTS) -DPREC_$* $(INCLUDES) -c $< -o $@
+# @file Makefile
+# @brief Makefile for custom building Vecchia
+# @version 1.0.0
+# @author Sohayla Abouzeid
+# @date 2025-01-XX
 
-$(BIN_DIR)/test_%_batch: $(OBJ_DIR)/test_%_batch.o
-	$(CXX) $(COPTS) $< -o $@ $(LIB_PATH) $(LIB)
+# This file is added to let R CMD build with Custom build configuration instead of using its
+# main build system. The library is already built by CMake and copied to src/Vecchia.so
+# by the configure script, so R doesn't need to compile anything.
+all :
 
-EXE_BATCH= $(patsubst %.c,$(BIN_DIR)/%,$(C_SRC_BATCH))
