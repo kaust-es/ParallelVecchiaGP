@@ -4,7 +4,7 @@
 
 /**
  * @file ErrorHandler.hpp
- * @version 1.1.0
+ * @version 1.0.0
  * @brief Provides error handling functionalities.
  * @details Defines macros and functions for handling errors and warnings.
  * @author Mahmoud ElKarargy

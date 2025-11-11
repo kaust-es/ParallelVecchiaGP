@@ -6,7 +6,7 @@
 /**
  * @file ParallelEstimator.hpp
  * @brief Header file for the EstimatorFactory class, which creates estimators based on the input computation type.
- * @version 1.1.0
+ * @version 1.0.0
  * @author Mahmoud ElKarargy
  * @date 2025-09-29
 **/

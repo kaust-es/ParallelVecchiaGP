@@ -97,7 +97,7 @@ To install the `Vecchia` project locally (C++ version), run the following comman
 
 2. **Run the configure script** (use the `-h` flag for help to see supported options):
    ```bash
-   ./configure -e 
+   ./configure -e -m
    ```
    This step is **not required** when using R installation.
 

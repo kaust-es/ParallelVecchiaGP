@@ -5,7 +5,7 @@
 
 # @file FindR.cmake
 # @brief Find the R and Rcpp library, Set some helpful variables.
-# @version 1.1.0
+# @version 1.0.0
 # @author Mahmoud ElKarargy
 # @author David Helmy
 # @date 2024-01-14

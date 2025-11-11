@@ -6,7 +6,7 @@
 /**
  * @file EnumStringParser.hpp
  * @brief Provides utility functions for parsing enumeration values from strings.
- * @version 1.1.0
+ * @version 1.0.0
  * @author Mahmoud ElKarargy
  * @date 2024-01-20
 **/

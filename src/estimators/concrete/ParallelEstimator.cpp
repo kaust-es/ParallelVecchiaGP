@@ -8,7 +8,7 @@
  * @brief Implementation of Parallel Vecchia estimator (point-by-point processing).
  * @details This implements the Parallel Vecchia approximation where each location conditions
  * on its nearest neighbors, as opposed to Block Vecchia which processes blocks of locations.
- * @version 1.1.0
+ * @version 1.0.0
  * @author Mahmoud ElKarargy
  * @author Sameh Abdulah
  * @date 2025-01-18

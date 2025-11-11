@@ -8,7 +8,7 @@
  * @brief Implementation of the EstimatorFactory class for creating estimators for different Vecchia types.
  * The factory creates a unique pointer to a concrete implementation of the Estimator class based on the Vecchia type specified.
  * If the required library is not enabled, it throws a runtime_error exception.
- * @version 1.1.0
+ * @version 1.0.0
  * @author Mahmoud ElKarargy
  * @date 2025-09-29
 **/

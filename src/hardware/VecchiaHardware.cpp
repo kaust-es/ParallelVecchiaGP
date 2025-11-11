@@ -6,7 +6,7 @@
 /**
  * @file VecchiaHardware.cpp
  * @brief Contains the implementation of the VecchiaHardware class.
- * @version 1.1.0
+ * @version 1.0.0
  * @author Mahmoud ElKarargy
  * @author Sameh Abdulah
  * @date 2025-09-29

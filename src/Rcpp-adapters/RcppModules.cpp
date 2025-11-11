@@ -39,30 +39,30 @@ RCPP_MODULE(VecchiaGB) {
                  _["kernel_type"] = R_NilValue
              ));
 
-    function("model_data", &vecchia::adapters::R_VecchiaModelData,
-             List::create(
-                 _["vecchia_type"] = "block",
-                 _["kernel"] = "Matern",
-                 _["distance_matrix"] = "euclidean",
-                 _["lb"] = NumericVector::create(0.01, 0.01, 0.01),
-                 _["ub"] = NumericVector::create(3.0, 3.0, 3.0),
-                 _["tol"] = 4.0,
-                 _["mle_itr"] = 100,
-                 _["block_size"] = 200,
-                 _["dimension"] = "2D",
-                 _["data"] = R_NilValue,
-                 _["matrix"] = R_NilValue,
-                 _["x"] = R_NilValue,
-                 _["y"] = R_NilValue,
-                 _["initial_theta"] = R_NilValue,
-                 _["distance_scale"] = R_NilValue,
-                 _["nn_multiplier"] = R_NilValue,
-                 _["conditioning_size"] = R_NilValue,
-                 _["ncores"] = R_NilValue,
-                 _["permutation"] = R_NilValue,
-                 _["kernel_type"] = R_NilValue,
-                 _["seed"] = R_NilValue
-             ));
+    List model_data_defaults;
+    model_data_defaults["vecchia_type"] = "block";
+    model_data_defaults["kernel"] = "Matern";
+    model_data_defaults["distance_matrix"] = "euclidean";
+    model_data_defaults["lb"] = NumericVector::create(0.01, 0.01, 0.01);
+    model_data_defaults["ub"] = NumericVector::create(3.0, 3.0, 3.0);
+    model_data_defaults["tol"] = 4.0;
+    model_data_defaults["mle_itr"] = 100;
+    model_data_defaults["block_size"] = 200;
+    model_data_defaults["dimension"] = "2D";
+    model_data_defaults["data"] = R_NilValue;
+    model_data_defaults["matrix"] = R_NilValue;
+    model_data_defaults["x"] = R_NilValue;
+    model_data_defaults["y"] = R_NilValue;
+    model_data_defaults["initial_theta"] = R_NilValue;
+    model_data_defaults["distance_scale"] = R_NilValue;
+    model_data_defaults["nn_multiplier"] = R_NilValue;
+    model_data_defaults["conditioning_size"] = R_NilValue;
+    model_data_defaults["ncores"] = R_NilValue;
+    model_data_defaults["permutation"] = R_NilValue;
+    model_data_defaults["kernel_type"] = R_NilValue;
+    model_data_defaults["seed"] = R_NilValue;
+    
+    function("model_data", &vecchia::adapters::R_VecchiaModelData, model_data_defaults);
 
     function("predict_data", &vecchia::adapters::R_VecchiaPredictData,
              List::create(
@@ -72,8 +72,8 @@ RCPP_MODULE(VecchiaGB) {
                  _["estimated_theta"] = NumericVector::create(1.0, 0.5, 0.1),
                  _["block_size"] = 200,
                  _["dimension"] = "2D",
-                 _["train_data"],
-                 _["test_data"],
+                 _["train_data"] = R_NilValue,
+                 _["test_data"] = R_NilValue,
                  _["train_locs"] = R_NilValue,
                  _["test_locs"] = R_NilValue,
                  _["distance_scale"] = R_NilValue,
