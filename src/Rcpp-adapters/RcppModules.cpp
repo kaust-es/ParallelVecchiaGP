@@ -23,7 +23,7 @@ RCPP_MODULE(VecchiaGB) {
     function("load_data", &vecchia::adapters::R_VecchiaLoadData,
              List::create(
                  _["vecchia_type"] = "block",
-                 _["kernel"] = "Matern",
+                 _["kernel"] = "univariate_matern_stationary",
                  _["initial_theta"] = NumericVector::create(1.0, 0.5, 0.1),
                  _["distance_matrix"] = "euclidean",
                  _["problem_size"] = 2000,
@@ -41,7 +41,7 @@ RCPP_MODULE(VecchiaGB) {
 
     List model_data_defaults;
     model_data_defaults["vecchia_type"] = "block";
-    model_data_defaults["kernel"] = "Matern";
+    model_data_defaults["kernel"] = "univariate_matern_stationary";
     model_data_defaults["distance_matrix"] = "euclidean";
     model_data_defaults["lb"] = NumericVector::create(0.01, 0.01, 0.01);
     model_data_defaults["ub"] = NumericVector::create(3.0, 3.0, 3.0);
@@ -67,7 +67,7 @@ RCPP_MODULE(VecchiaGB) {
     function("predict_data", &vecchia::adapters::R_VecchiaPredictData,
              List::create(
                  _["vecchia_type"] = "block",
-                 _["kernel"] = "Matern",
+                 _["kernel"] = "univariate_matern_stationary",
                  _["distance_matrix"] = "euclidean",
                  _["estimated_theta"] = NumericVector::create(1.0, 0.5, 0.1),
                  _["block_size"] = 200,

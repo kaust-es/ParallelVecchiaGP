@@ -10,3 +10,5 @@
 ./bin/
 ./cmake-build-debug/
 LICENSE
+^installdir/
+^\.\.Rcheck/
