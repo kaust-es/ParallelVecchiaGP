@@ -217,8 +217,9 @@ static std::vector<int> randomClustering(const std::vector<PointMetadata> &metad
     int numPoints = metadata.size();
     std::vector<int> clusters(numPoints);
     int block_size = numPoints / k;
-    // Alpha expansion: 99999999 for test (no limit), 1.5 for training
-    float alpha_expansion = is_test ? 99999999.0f : 1.5f;
+    // Alpha expansion: 99999999 for test (no limit), 15000 for training
+    // This allows clusters to grow much larger than average to avoid segfaults
+    float alpha_expansion = is_test ? 99999999.0f : 15000.0f;
     
     // Initialize random number generator
     std::mt19937 gen(seed);
@@ -889,7 +890,7 @@ static std::vector<BlockInfo> processAndSendBlocks(std::vector<BlockInfo> &block
  * @details Reference: vecchia_helper.cpp in ParallelScaledBlockVecchiaGP
  */
 static void nearest_neighbor_search(std::vector<BlockInfo> &blockInfos, std::vector<BlockInfo> &receivedBlocks, 
-                            Configurations &aConfigurations, bool pred_tag)
+                            Configurations &aConfigurations, double distance, bool pred_tag)
 {
 #ifdef USE_MPI
     int rank = VecchiaHardware::GetMPIRank();
@@ -899,10 +900,9 @@ static void nearest_neighbor_search(std::vector<BlockInfo> &blockInfos, std::vec
     std::sort(receivedBlocks.begin(), receivedBlocks.end(), [](const BlockInfo& a, const BlockInfo& b) {
         return a.globalOrder < b.globalOrder;
     });
-    
+
     int m_nn = pred_tag ? aConfigurations.GetTestConditioningSize() : aConfigurations.GetConditioningSize();
-    double distance_threshold = aConfigurations.GetDistanceScale()[0];  // Use finer threshold
-    
+    double distance_threshold = distance;
     // Perform nearest neighbor search
     #pragma omp parallel for schedule(dynamic)
     for (size_t i = 0; i < blockInfos.size(); ++i) {
@@ -1024,7 +1024,7 @@ ClusteringResult<T> DistributedClusteringStrategy<T>::ComputeClusters(
         LOGGER("** DistributedClusteringStrategy: " << mMethod 
                << " with MPI (ranks=" << size << ") **")
     }
-    
+    bool pred_tag = false;
     Dimension dim = aLocations.GetDimension();
     int numLocalPoints = aLocations.GetSize();
     double distance = DistanceCalculationHelpers<T>::CalculateDistanceThreshold(aConfigurations.GetDistanceScale(), aConfigurations.GetProblemSize(), aConfigurations.GetConditioningSize(), aConfigurations.GetNNMultiplier());
@@ -1032,10 +1032,12 @@ ClusteringResult<T> DistributedClusteringStrategy<T>::ComputeClusters(
     std::cout << "kernel_type: " << aConfigurations.GetKernelType() << std::endl;
     std::cout << "Number of total points: " << aConfigurations.GetProblemSize() << std::endl;
     std::cout << "Number of total blocks: " << aConfigurations.GetBlockSize() << std::endl;
-    std::cout << "Number of total points_test: " << aConfigurations.GetTestPointsTotal() << std::endl;
-    std::cout << "Number of total blocks_test: " << aConfigurations.GetTestBlocksTotal() << std::endl;
     std::cout << "The number of nearest neighbors: " << aConfigurations.GetConditioningSize() << std::endl;
-    std::cout << "The number of nearest neighbors_test: " << aConfigurations.GetTestConditioningSize() << std::endl;
+    if(pred_tag){
+        std::cout << "Number of total points_test: " << aConfigurations.GetTestPointsTotal() << std::endl;
+        std::cout << "Number of total blocks_test: " << aConfigurations.GetTestBlocksTotal() << std::endl;
+        std::cout << "The number of nearest neighbors_test: " << aConfigurations.GetTestConditioningSize() << std::endl;
+    }
     std::cout << "The distance threshold_coarse: " << distance << std::endl;
     std::cout << "The distance threshold_finer: " << distance << std::endl;
     std::cout << "Dimension: " << aConfigurations.GetDimensionSize() << std::endl;
@@ -1088,29 +1090,29 @@ ClusteringResult<T> DistributedClusteringStrategy<T>::ComputeClusters(
     std::vector<PointMetadata> localPoints = generateRandomPoints(numPointsPerProcess, aConfigurations.GetDimensionSize(), aConfigurations.GetMaxMleIterations());
     long long numPointsPerProcess_test = aConfigurations.GetTestPointsTotal() / size + (rank < aConfigurations.GetTestPointsTotal() % size ? 1 : 0);
     std::vector<PointMetadata> localPoints_test = generateRandomPoints(numPointsPerProcess_test, aConfigurations.GetDimensionSize(), aConfigurations.GetMaxMleIterations());
-    printf("numPointsPerProcess: %lld\n", numPointsPerProcess);
-    printf("numPointsPerProcess_test: %lld\n", numPointsPerProcess_test);
     // print the first 10 points
-    if (rank == 0){
-        std::cout << "First 10 points: " << std::endl;
-        for (int i = 0; i < 10; i++){
-            for (int j = 0; j < aConfigurations.GetDimensionSize(); ++j){
-                std::cout << localPoints[i].coordinates[j] << ", ";
-            }
-            std::cout << localPoints[i].observation << std::endl;
-        }
-        std::cout << "First 10 test points: " << std::endl;
-        for (int i = 0; i < 10; i++){
-            for (int j = 0; j < aConfigurations.GetDimensionSize(); ++j){
-                std::cout << localPoints_test[i].coordinates[j] << ", ";
-            }
-            std::cout << localPoints_test[i].observation << std::endl;
-        }
-    }
+    // if (rank == 0){
+    //     std::cout << "First 10 points: " << std::endl;
+    //     for (int i = 0; i < 10; i++){
+    //         for (int j = 0; j < aConfigurations.GetDimensionSize(); ++j){
+    //             std::cout << localPoints[i].coordinates[j] << ", ";
+    //         }
+    //         std::cout << localPoints[i].observation << std::endl;
+    //     }
+    //     std::cout << "First 10 test points: " << std::endl;
+    //     for (int i = 0; i < 10; i++){
+    //         for (int j = 0; j < aConfigurations.GetDimensionSize(); ++j){
+    //             std::cout << localPoints_test[i].coordinates[j] << ", ";
+    //         }
+    //         std::cout << localPoints_test[i].observation << std::endl;
+    //     }
+    // }
 
     // do the distance scale for input points
     distanceScale(localPoints, aConfigurations.GetDistanceScale(), aConfigurations.GetDimensionSize());
-    distanceScale(localPoints_test, aConfigurations.GetDistanceScale(), aConfigurations.GetDimensionSize());
+    if(pred_tag){
+        distanceScale(localPoints_test, aConfigurations.GetDistanceScale(), aConfigurations.GetDimensionSize());
+    }
     // do (coarser) partition - redistribute points across MPI ranks
     std::vector<PointMetadata> localPoints_partition;
     std::vector<PointMetadata> localPoints_partition_test;
@@ -1119,13 +1121,17 @@ ClusteringResult<T> DistributedClusteringStrategy<T>::ComputeClusters(
             printf("Partition method: linear\n");
         }
         partitionPoints(localPoints, localPoints_partition, aConfigurations.GetDimensionSize(), aConfigurations.GetDistanceScale());
-        partitionPoints(localPoints_test, localPoints_partition_test, aConfigurations.GetDimensionSize(), aConfigurations.GetDistanceScale());
+        if(pred_tag){
+            partitionPoints(localPoints_test, localPoints_partition_test, aConfigurations.GetDimensionSize(), aConfigurations.GetDistanceScale());
+        }
     } else if(aConfigurations.GetPartitionMethod() == common::NO_PARTITION){
         if (rank == 0) {
             printf("Partition method: none\n");
         }
         localPoints_partition = localPoints;
-        localPoints_partition_test = localPoints_test;
+        if(pred_tag){
+            localPoints_partition_test = localPoints_test;
+        }
     }
     
     std::cout << "rank: " << rank << ", gpu_id: " << VecchiaHardware::GetLocalGPUId() << std::endl;
@@ -1143,8 +1149,11 @@ ClusteringResult<T> DistributedClusteringStrategy<T>::ComputeClusters(
     std::vector<std::vector<PointMetadata>> finerPartitions;
     std::vector<std::vector<PointMetadata>> finerPartitions_test;
     int numBlocksPerProcess = aConfigurations.GetBlockSize() / size + (rank < aConfigurations.GetBlockSize() % size ? 1 : 0);
+    int numBlocksPerProcess_test = aConfigurations.GetTestBlocksTotal() / size + (rank < aConfigurations.GetTestBlocksTotal() % size ? 1 : 0);
     finerPartition(localPoints_partition, numBlocksPerProcess, finerPartitions, aConfigurations, false);
-    finerPartition(localPoints_partition_test, numBlocksPerProcess, finerPartitions_test, aConfigurations, true);
+    if(pred_tag){
+        finerPartition(localPoints_partition_test, numBlocksPerProcess_test, finerPartitions_test, aConfigurations, true);
+    }
     MPI_Barrier(MPI_COMM_WORLD);
     auto end_preprocessing = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration_preprocessing = end_preprocessing - start_preprocessing;
@@ -1160,8 +1169,10 @@ ClusteringResult<T> DistributedClusteringStrategy<T>::ComputeClusters(
     }
     auto start_centers_of_gravity = std::chrono::high_resolution_clock::now();
     std::vector<std::vector<double>> centers = calculateCentersOfGravity(finerPartitions, aConfigurations);
-    std::vector<std::vector<double>> centers_test = calculateCentersOfGravity(finerPartitions_test, aConfigurations);
-    
+    std::vector<std::vector<double>> centers_test;
+    if(pred_tag){
+        centers_test = calculateCentersOfGravity(finerPartitions_test, aConfigurations);
+    }
     MPI_Barrier(MPI_COMM_WORLD);
     auto end_centers_of_gravity = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration_centers_of_gravity = end_centers_of_gravity - start_centers_of_gravity;
@@ -1175,7 +1186,9 @@ ClusteringResult<T> DistributedClusteringStrategy<T>::ComputeClusters(
     std::vector<std::pair<std::vector<double>, int>> allCenters;
     std::vector<std::pair<std::vector<double>, int>> allCenters_test;
     AllGatherCentersHelper(centers, allCenters, aConfigurations);
-    AllGatherCentersHelper(centers_test, allCenters_test, aConfigurations);
+    if(pred_tag){
+        AllGatherCentersHelper(centers_test, allCenters_test, aConfigurations);
+    }
 
     MPI_Barrier(MPI_COMM_WORLD);
     auto end_send_centers_of_gravity = std::chrono::high_resolution_clock::now();
@@ -1205,7 +1218,10 @@ ClusteringResult<T> DistributedClusteringStrategy<T>::ComputeClusters(
     // 4. NN searching - Create block information
     auto start_create_block_info = std::chrono::high_resolution_clock::now();
     std::vector<BlockInfo> localBlocks = createBlockInfo(finerPartitions, centers, allCenters, permutation, localPermutation, aConfigurations);
-    std::vector<BlockInfo> localBlocks_test = createBlockInfo(finerPartitions_test, centers_test, allCenters_test, permutation, localPermutation, aConfigurations);
+    std::vector<BlockInfo> localBlocks_test;
+    if(pred_tag){
+        localBlocks_test = createBlockInfo(finerPartitions_test, centers_test, allCenters_test, permutation, localPermutation, aConfigurations);
+    }
     
     MPI_Barrier(MPI_COMM_WORLD);
     auto end_create_block_info = std::chrono::high_resolution_clock::now();
@@ -1224,8 +1240,12 @@ ClusteringResult<T> DistributedClusteringStrategy<T>::ComputeClusters(
         aConfigurations.GetNNMultiplier());
     std::vector<BlockInfo> receivedBlocks = processAndSendBlocks(localBlocks, allCenters, distance_threshold_coarse, 
                                                                  permutation, localPermutation, aConfigurations, false);
-    std::vector<BlockInfo> receivedBlocks_test = processAndSendBlocks(localBlocks, allCenters_test, distance_threshold_coarse, 
+    std::vector<BlockInfo> receivedBlocks_test;
+    if(pred_tag){
+        // For test/prediction, use training blocks (localBlocks) to find neighbors for test blocks
+        receivedBlocks_test = processAndSendBlocks(localBlocks, allCenters_test, distance_threshold_coarse, 
                                                                  permutation, localPermutation, aConfigurations, true);
+    }
     MPI_Barrier(MPI_COMM_WORLD);
     auto end_block_sending = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration_block_sending = end_block_sending - start_block_sending;
@@ -1240,21 +1260,26 @@ ClusteringResult<T> DistributedClusteringStrategy<T>::ComputeClusters(
         total_point_size += block.blocks.size();
     }
     std::cout << "rank: " << rank << ", total_point_size: " << total_point_size << std::endl;
+    if(pred_tag){
     int total_point_size_test = 0;
-    for (auto& block : receivedBlocks_test){
-        total_point_size_test += block.blocks.size();
+        for (auto& block : receivedBlocks_test){
+            total_point_size_test += block.blocks.size();
+        }
+        std::cout << "rank: " << rank << ", total_point_size_test: " << total_point_size_test << std::endl;
     }
-    std::cout << "rank: " << rank << ", total_point_size_test: " << total_point_size_test << std::endl;
 
     MPI_Barrier(MPI_COMM_WORLD);
     
+
     // 4.3 NN searching
     if (rank == 0){
         std::cout << "Performing NN searching" << std::endl;
     }
     auto start_nn_searching = std::chrono::high_resolution_clock::now();
-    nearest_neighbor_search(localBlocks, receivedBlocks, aConfigurations, false);
-    nearest_neighbor_search(localBlocks_test, receivedBlocks_test, aConfigurations, true);
+    nearest_neighbor_search(localBlocks, receivedBlocks, aConfigurations, distance, false);
+    if(pred_tag){
+        nearest_neighbor_search(localBlocks_test, receivedBlocks_test, aConfigurations, distance, true);
+    }
 
     MPI_Barrier(MPI_COMM_WORLD);
     auto end_nn_searching = std::chrono::high_resolution_clock::now();
@@ -1266,16 +1291,19 @@ ClusteringResult<T> DistributedClusteringStrategy<T>::ComputeClusters(
 
     // Descale distances back to original scale
     distanceDeScale(localBlocks, aConfigurations.GetDistanceScale(), aConfigurations.GetDimensionSize());
-    distanceDeScale(localBlocks_test, aConfigurations.GetDistanceScale(), aConfigurations.GetDimensionSize());
+    if(pred_tag){
+        distanceDeScale(localBlocks_test, aConfigurations.GetDistanceScale(), aConfigurations.GetDimensionSize());
+    }
     // Store BlockInfo in ClusteringResult for use by ScaledBlockEstimator
     result.blockInfos = localBlocks;
-    result.blockInfos_test = localBlocks_test;  
+    if(pred_tag){
+        result.blockInfos_test = localBlocks_test;  
+    }
 
     if (rank == 0) {
         std::cout << "Stored " << localBlocks.size() << " blocks in ClusteringResult" << std::endl;
         std::cout << "Stored " << localBlocks_test.size() << " test blocks in ClusteringResult" << std::endl;
     }
-    
     return result;
 #endif
 }

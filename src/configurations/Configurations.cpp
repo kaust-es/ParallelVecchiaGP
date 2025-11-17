@@ -73,9 +73,9 @@ Configurations::Configurations() {
     SetDistanceScale(empty_scale);  // Empty = uniform scaling
     
     // Test/Prediction parameters (for Scaled Block prediction mode)
-    SetTestPointsTotal(2000);  // Default 2000
-    SetTestBlocksTotal(100);  // Default 100
-    SetTestConditioningSize(120);  // Default m_test
+    SetTestPointsTotal(0); 
+    SetTestBlocksTotal(0);  
+    SetTestConditioningSize(0);  // Default m_test
     
     // CSV file paths for train/test data
     SetTrainLocationsPath("");
