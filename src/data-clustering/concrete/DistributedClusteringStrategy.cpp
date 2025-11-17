@@ -1025,6 +1025,9 @@ ClusteringResult<T> DistributedClusteringStrategy<T>::ComputeClusters(
                << " with MPI (ranks=" << size << ") **")
     }
     bool pred_tag = false;
+    if(aConfigurations.GetTestPointsTotal() > 0 && aConfigurations.GetTestBlocksTotal() > 0){
+        pred_tag = true;
+    }
     Dimension dim = aLocations.GetDimension();
     int numLocalPoints = aLocations.GetSize();
     double distance = DistanceCalculationHelpers<T>::CalculateDistanceThreshold(aConfigurations.GetDistanceScale(), aConfigurations.GetProblemSize(), aConfigurations.GetConditioningSize(), aConfigurations.GetNNMultiplier());
