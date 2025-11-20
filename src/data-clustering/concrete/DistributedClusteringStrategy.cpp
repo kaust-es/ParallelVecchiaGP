@@ -217,11 +217,9 @@ static std::vector<int> randomClustering(const std::vector<PointMetadata> &metad
     int numPoints = metadata.size();
     std::vector<int> clusters(numPoints);
     int block_size = numPoints / k;
-    // Alpha expansion: 99999999 for test (no limit), 1.5 for training
-    // Match old code: random_points.cpp line 146
-    // Note: 1.5 here will make the random seed not working perfectly because the
-    // parallelization here will somehow terminate feed a cluster with exceeding the size limit
-    float alpha_expansion = is_test ? 99999999.0f : 1.5f;
+    // Alpha expansion: 99999999 for test (no limit), 15000 for training
+    // This allows clusters to grow much larger than average to avoid segfaults
+    float alpha_expansion = is_test ? 99999999.0f : 15000.0f;
     
     // Initialize random number generator
     std::mt19937 gen(seed);
