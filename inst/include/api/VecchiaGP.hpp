@@ -71,11 +71,7 @@ namespace vecchia::api {
          */
         static void
         VecchiaPrediction(configurations::Configurations &aConfigurations, std::unique_ptr<VecchiaGBData<T>> &aData, T *apMeasurementsMatrix);
-                             // TODO: add VecchiaData<T>
-                             // std::unique_ptr<VecchiaData<T>> &aData,
-                             // T *apMeasurementsMatrix = nullptr, dataunits::Locations<T> *apTrainLocations = nullptr,
-                             // dataunits::Locations<T> *apTestLocations = nullptr);
-
+                             
     };
 
     /**

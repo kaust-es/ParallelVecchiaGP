@@ -36,7 +36,6 @@ int main(int argc, char **argv) {
     configurations.InitializeArguments(argc, argv);
     
     // Initialize the Vecchia Hardware.
-    // TODO: Is the vecchia type and GPU numbers needed?
     auto hardware = VecchiaHardware(configurations.GetVecchiaType(), configurations.GetCoresNumber(),
                                     configurations.GetGPUsNumbers());
 
