@@ -7,7 +7,8 @@
  * @brief Header file for function adapters in the Vecchia software.
  * @details It provides declarations for functions that adapt Vecchia GP operations for R.
  * @version 1.0.0
- * @author Generated for R wrapper
+ * @author Mahmoud ElKarargy
+ * @author Sohayla Khaled
  * @date 2025-01-01
 **/
 
