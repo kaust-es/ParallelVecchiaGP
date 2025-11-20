@@ -744,7 +744,9 @@ double performComputationOnGPU(const GpuData &gpuData, const std::vector<double>
                                cudaMemcpyHostToDevice));
     
     // 1. Generate covariance matrices using batched operations
-   compute_covariance_vbatched(gpuData.d_locs_array,
+    // TODO: Implement compute_covariance_vbatched in gpukernels.cu
+    // For now, this is a placeholder that will need the actual GPU kernel implementation
+    compute_covariance_vbatched(gpuData.d_locs_array,
                 gpuData.d_lda_locs, 1, gpuData.total_locs_num_device,
                 gpuData.d_locs_array,
                 gpuData.d_lda_locs, 1, gpuData.total_locs_num_device,
@@ -839,6 +841,7 @@ double performComputationOnGPU(const GpuData &gpuData, const std::vector<double>
         batchCount, queue);
     
     // 3.3 Compute norm and determinant
+    // TODO: Implement norm2_batch and log_det_batch in gpukernels.cu
     double norm2_item = norm2_batch(d_lda_locs, gpuData.d_observations_copy_array, d_ldda_locs, batchCount, stream);
     double log_det_item = log_det_batch(d_lda_locs, gpuData.d_cov_array, d_ldda_cov, batchCount, stream);
     
