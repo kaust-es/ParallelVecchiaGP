@@ -18,7 +18,7 @@
 cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
 
 # Set project options
-option(USE_MPI "Use MPI for distributed Scaled Block Vecchia" OFF)
+# MPI is now required (removed USE_MPI option)
 option(BUILD_TESTS "Option to enable building tests" OFF)
 option(BUILD_EXAMPLES "Option to enable building examples" ON)
 option(USE_R "Enable the use of R and Rcpp in the project" OFF)
@@ -46,18 +46,16 @@ add_compile_definitions(PROJECT_SOURCE_DIR="${PROJECT_SOURCE_DIR}/")
 # Set kernels path.
 add_definitions(-DKERNELS_PATH="${PROJECT_SOURCE_DIR}/inst/include/kernels/concrete/")
 
-# VecchiaGP depends on MPI
+# VecchiaGP depends on MPI (required)
 # -------------------------------
-if (USE_MPI)
-    message("")
-    message("---------------------------------------- MPI")
-    # Enable MPI and include MPI
-    add_definitions(-DUSE_MPI=TRUE)
-    message(STATUS "Trying to find MPI")
-    find_package(MPI REQUIRED)
-    include_directories(${MPI_INCLUDE_PATH})
-    list(APPEND LIBS ${MPI_LIBRARIES})
-endif ()
+message("")
+message("---------------------------------------- MPI")
+# Enable MPI and include MPI
+add_definitions(-DUSE_MPI=TRUE)
+message(STATUS "Trying to find MPI")
+find_package(MPI REQUIRED)
+include_directories(${MPI_INCLUDE_PATH})
+list(APPEND LIBS ${MPI_LIBRARIES})
 
 # VecchiaGP depends on GFortran
 # -------------------------------

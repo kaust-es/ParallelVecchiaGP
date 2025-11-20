@@ -60,14 +60,13 @@ fi
 BUILDING_TESTS="OFF"
 BUILDING_EXAMPLES="OFF"
 VERBOSE="OFF"
-USE_MPI="OFF"
 USE_R="OFF"
 SHOW_WARNINGS="OFF"
 COMPILE_FLAGS="-Wl,--no-as-needed -w -fpic"
 DEVELOPER_WARNINGS="-Wno-dev"
 
 # Parse command line options
-while getopts ":tevwhi:mr" opt; do
+while getopts ":tevwhi:r" opt; do
   case $opt in
   i) ##### Define installation path  #####
     echo "${YELLOW}Installation path set to $OPTARG.${NC}"
@@ -80,10 +79,6 @@ while getopts ":tevwhi:mr" opt; do
   e) ##### Building examples enabled #####
     echo "${GREEN}Building examples enabled.${NC}"
     BUILDING_EXAMPLES="ON"
-    ;;
-  m) ##### Using MPI enabled #####
-    echo "${GREEN}MPI enabled ${NC}"
-    USE_MPI="ON"
     ;;
   v) ##### printing full output of make #####
     echo "${GREEN}printing make with details.${NC}"
@@ -111,7 +106,6 @@ while getopts ":tevwhi:mr" opt; do
     printf "%20s %s\n" "-i [path] :" "specify installation path, default = ${PWD}/installdir/_deps/"
     printf "%20s %s\n" "-t :" "to enable building tests."
     printf "%20s %s\n" "-e :" "to enable building examples."
-    printf "%20s %s\n" "-m :" "to enable using MPI."
     printf "%20s %s\n" "-v :" "to enable verbose printings."
     printf "%20s %s\n" "-w :" "to enable showing warnings."
     printf "%20s %s\n" "-r :" "to enable R support"
@@ -132,10 +126,8 @@ if [ -z "$BUILDING_EXAMPLES" ]; then
   echo "${RED}Building examples disabled.${NC}"
 fi
 
-if [ -z "$USE_MPI" ]; then
-  USE_MPI="OFF"
-  echo "${RED}Using MPI disabled${NC}"
-fi
+# MPI is always required
+echo "${GREEN}MPI is required and enabled${NC}"
 
 if [ "$SHOW_WARNINGS" = "ON" ]; then
   COMPILE_FLAGS="$COMPILE_FLAGS -W"
@@ -180,7 +172,6 @@ fi
   -DBUILD_TESTS="${BUILDING_TESTS}" \
   -DBUILD_EXAMPLES="${BUILDING_EXAMPLES}" \
   -DCMAKE_VERBOSE_MAKEFILE:BOOL=${VERBOSE} \
-  -DUSE_MPI="${USE_MPI}" \
   -DUSE_R="${USE_R}" \
   -DBUILD_SHARED_LIBS=OFF \
   -H"${ABSOLUTE_PATH}" \

@@ -63,7 +63,7 @@ The approach focuses not on introducing new datasets or algorithms, but on opera
 - **Parameter Estimation**: Maximum Likelihood Estimation (MLE) with configurable optimization bounds
 - **Prediction**: Efficient prediction at new locations using estimated parameters
 - **Spatial Ordering**: Multiple permutation strategies (Morton, Random) for neighbor selection
-- **MPI Support**: Optional distributed computing support for scaled block Vecchia
+- **MPI Support**: Required distributed computing support
 - **R Integration**: Full R interface via Rcpp for seamless integration with R workflows
 
 ---
@@ -97,9 +97,10 @@ To install the `Vecchia` project locally (C++ version), run the following comman
 
 2. **Run the configure script** (use the `-h` flag for help to see supported options):
    ```bash
-   ./configure -e -m
+   ./configure -e
    ```
    This step is **not required** when using R installation.
+   **Note:** MPI is now required and automatically enabled.
 
 3. **Build the project** (use the `-h` flag for help):
    ```bash
@@ -481,14 +482,13 @@ All dependencies are installed locally in `installdir/_deps/` during the configu
 
 When building with CMake, you can configure:
 
-- `USE_MPI` (OFF): Enable MPI for distributed Scaled Block Vecchia
 - `BUILD_TESTS` (OFF): Build test suite
 - `BUILD_EXAMPLES` (ON): Build example programs
 - `USE_R` (OFF): Enable R and Rcpp integration
 
 Example:
 ```bash
-cmake -DUSE_MPI=ON -DBUILD_TESTS=ON ..
+cmake -DBUILD_TESTS=ON ..
 ```
 
 ### Configure Script Options
@@ -498,7 +498,6 @@ Run `./configure -h` to see all available options.
 Common options:
 - `-e`: Enable examples
 - `-r`: Enable R support
-- `-m`: Enable MPI support
 - `-t`: Enable building tests
 - `-v`: Enable verbose output
 - `-w`: Enable showing warnings

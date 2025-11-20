@@ -31,7 +31,7 @@ Before installing VecchiaGP, ensure you have:
 - **CUDA Toolkit** (for GPU acceleration)
 - **gcc/g++** compilers (C++11 or higher)
 - **R** (version 3.6.0 or higher) - only if using R interface
-- **MPI** (optional, for distributed Scaled Block Vecchia)
+- **MPI** (required, for distributed computing)
 
 ### C++ Installation
 
@@ -44,20 +44,21 @@ cd ParallelVecchiaGP
 
 #### Step 2: Configure the Build
 
-Run the configure script with the `-e` flag to enable examples and -m to enable mpi:
+Run the configure script with the `-e` flag to enable examples:
 
 ```bash
-./configure -e -m
+./configure -e
 ```
 
 **Configure Options:**
 - `-e`: Enable building examples
 - `-r`: Enable R support
-- `-m`: Enable MPI support (for distributed Scaled Block Vecchia)
 - `-t`: Enable building tests
 - `-v`: Verbose output
 - `-w`: Show warnings
 - `-h`: Show help message
+
+
 
 **Note:** The configure script automatically downloads and builds all dependencies (MAGMA, KBLAS, BLASPP, LAPACK, GSL, NLOPT) in `installdir/_deps/`.
 
