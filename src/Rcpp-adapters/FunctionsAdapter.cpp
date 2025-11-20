@@ -6,8 +6,7 @@
  * @file FunctionsAdapter.cpp
  * @brief Implementation of function adapters for Vecchia R wrapper
  * @version 1.0.0
- * @author Mahmoud ElKarargy
- * @author Sohayla Khaled
+ * @author Generated for R wrapper
  * @date 2025-01-01
 **/
 
