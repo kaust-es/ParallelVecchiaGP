@@ -733,39 +733,64 @@ static std::vector<BlockInfo> processAndSendBlocks(std::vector<BlockInfo> &block
     std::vector<std::vector<std::set<int>>> private_blockIndexSets(omp_get_max_threads(), std::vector<std::set<int>>(size));
     std::vector<std::vector<std::vector<BlockInfo>>> private_sendBuffers(omp_get_max_threads(), std::vector<std::vector<BlockInfo>>(size));
 
-    // Parallelize loop over centers
-    #pragma omp parallel for schedule(dynamic)
-    for (size_t i = 0; i < allCenterRanks.size(); ++i){
-        int thread_id = omp_get_thread_num();
-        const auto &centerRank = allCenterRanks[i];
-        const auto &center = centerRank.first;
-        int destRank = centerRank.second;
-        
-        // For each block, check if it's within distance threshold of this center
-        for (const auto &blockInfo : blockInfos) {
-            int globalOrder = blockInfo.globalOrder;
-            if (!pred_tag && globalOrder >= permutation[i]){
-                continue;
-            }
-
-            // Send first m_const blocks to all processors to ensure enough blocks
-            if (!pred_tag && globalOrder < m_const) {
-                for (int dest = 0; dest < size; ++dest) {
-                    if (private_blockIndexSets[thread_id][dest].find(globalOrder) == private_blockIndexSets[thread_id][dest].end()) {
-                        private_sendBuffers[thread_id][dest].push_back(blockInfo);
-                        private_blockIndexSets[thread_id][dest].insert(globalOrder);
+    // Parallelize loop over centers with separate handling for pred_tag and non-pred_tag cases
+    // This avoids repeated conditional checks inside the hot loop
+    if (pred_tag){
+        #pragma omp parallel for schedule(dynamic)
+        for (size_t i = 0; i < allCenterRanks.size(); ++i){
+            int thread_id = omp_get_thread_num();
+            const auto &centerRank = allCenterRanks[i];
+            const auto &center = centerRank.first;
+            int destRank = centerRank.second;
+            
+            // For each block, check if it's within distance threshold of this center
+            for (const auto &blockInfo : blockInfos) {
+                int globalOrder = blockInfo.globalOrder;
+                // Calculate distance between block center and the current center
+                double distance = calculateDistance(blockInfo.center, center);
+                // If within threshold, send to the corresponding rank
+                if (distance < distance_threshold_dynamic) {
+                    if (private_blockIndexSets[thread_id][destRank].find(globalOrder) == private_blockIndexSets[thread_id][destRank].end()) {
+                        private_sendBuffers[thread_id][destRank].push_back(blockInfo);
+                        private_blockIndexSets[thread_id][destRank].insert(globalOrder);
                     }
                 }
-                continue;
             }
+        }
+    }else{
+        #pragma omp parallel for schedule(dynamic)
+        for (size_t i = 0; i < allCenterRanks.size(); ++i){
+            int thread_id = omp_get_thread_num();
+            const auto &centerRank = allCenterRanks[i];
+            const auto &center = centerRank.first;
+            int destRank = centerRank.second;
             
-            // Calculate distance between block center and the current center
-            double distance = calculateDistance(blockInfo.center, center);
-            // If within threshold, send to the corresponding rank
-            if (distance < distance_threshold_dynamic) {
-                if (private_blockIndexSets[thread_id][destRank].find(globalOrder) == private_blockIndexSets[thread_id][destRank].end()) {
-                    private_sendBuffers[thread_id][destRank].push_back(blockInfo);
-                    private_blockIndexSets[thread_id][destRank].insert(globalOrder);
+            // For each block, check if it's within distance threshold of this center
+            for (const auto &blockInfo : blockInfos) {
+                int globalOrder = blockInfo.globalOrder;
+                if (globalOrder >= permutation[i]){
+                    continue;
+                }
+
+                // Send first m_const blocks to all processors to ensure enough blocks
+                if (globalOrder < m_const) {
+                    for (int dest = 0; dest < size; ++dest) {
+                        if (private_blockIndexSets[thread_id][dest].find(globalOrder) == private_blockIndexSets[thread_id][dest].end()) {
+                            private_sendBuffers[thread_id][dest].push_back(blockInfo);
+                            private_blockIndexSets[thread_id][dest].insert(globalOrder);
+                        }
+                    }
+                    continue;
+                }
+                
+                // Calculate distance between block center and the current center
+                double distance = calculateDistance(blockInfo.center, center);
+                // If within threshold, send to the corresponding rank
+                if (distance < distance_threshold_dynamic) {
+                    if (private_blockIndexSets[thread_id][destRank].find(globalOrder) == private_blockIndexSets[thread_id][destRank].end()) {
+                        private_sendBuffers[thread_id][destRank].push_back(blockInfo);
+                        private_blockIndexSets[thread_id][destRank].insert(globalOrder);
+                    }
                 }
             }
         }
@@ -903,6 +928,11 @@ static void nearest_neighbor_search(std::vector<BlockInfo> &blockInfos, std::vec
 
     int m_nn = pred_tag ? aConfigurations.GetTestConditioningSize() : aConfigurations.GetConditioningSize();
     double distance_threshold = distance;
+    
+    // Pre-compute these values OUTSIDE the parallel loop to avoid repeated function calls
+    int numBlocksPerProcess = aConfigurations.GetBlockSize() / size + (rank < aConfigurations.GetBlockSize() % size ? 1 : 0);
+    int numPointsPerProcess = aConfigurations.GetProblemSize() / size + (rank < aConfigurations.GetProblemSize() % size ? 1 : 0);
+    
     // Perform nearest neighbor search
     #pragma omp parallel for schedule(dynamic)
     for (size_t i = 0; i < blockInfos.size(); ++i) {
@@ -922,8 +952,6 @@ static void nearest_neighbor_search(std::vector<BlockInfo> &blockInfos, std::vec
         }
         
         // Handle classic Vecchia case
-        int numBlocksPerProcess = aConfigurations.GetBlockSize() / size + (rank < aConfigurations.GetBlockSize() % size ? 1 : 0);
-        int numPointsPerProcess = aConfigurations.GetProblemSize() / size + (rank < aConfigurations.GetProblemSize() % size ? 1 : 0);
         if (block.globalOrder <= m_nn && numBlocksPerProcess == numPointsPerProcess){
             continue;
         }
