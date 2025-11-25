@@ -119,12 +119,13 @@ macro(ImportDependency name tag version url flag components is_cmake is_git auto
 
     # If the dependency is not GSL, append its libraries to the list of libraries to be linked against.
     if(NOT ${name} STREQUAL "GSL")
-        # For MAGMA, filter out CUDA libraries that are handled separately
+        # For MAGMA, filter out CUDA libraries and magma_sparse that are handled separately
         if(${name} STREQUAL "MAGMA")
-            # Filter out CUDA libraries from MAGMA_LIBRARIES
+            # Filter out CUDA libraries and magma_sparse from MAGMA_LIBRARIES
             set(FILTERED_MAGMA_LIBS "")
             foreach(lib ${${name}_LIBRARIES})
-                if(NOT lib MATCHES "^(cudart|cublas|cusparse|curand|cufft|cusolver)$")
+                # Check if it's a CUDA library or magma_sparse (handle various formats: -lmagma_sparse, magma_sparse, or full path)
+                if(NOT lib MATCHES "(cudart|cublas|cusparse|curand|cufft|cusolver|magma_sparse)")
                     list(APPEND FILTERED_MAGMA_LIBS ${lib})
                 endif()
             endforeach()

@@ -216,11 +216,14 @@ T VecchiaGP<T>::VecchiaDataEstimation(Configurations &aConfigurations, std::uniq
     optimizing_function.set_maxeval(max_number_of_iterations);
     optimizing_function.set_max_objective(VecchiaMLETileAPI, (void *) modeling_data);
 
-    // Optimize mle using nlopt.
-    optimizing_function.optimize(aConfigurations.GetInitialTheta(), opt_f);
-    aConfigurations.SetEstimatedTheta(aConfigurations.GetInitialTheta());
+    // Get reference to theta vector - optimize() will modify it in place
+    auto& theta = aConfigurations.GetInitialTheta();
     
-    auto theta = aConfigurations.GetInitialTheta();
+    // Optimize mle using nlopt.
+    optimizing_function.optimize(theta, opt_f);
+    
+    // Set estimated theta to the optimized values (theta has been modified by optimize())
+    aConfigurations.SetEstimatedTheta(theta);
 
     LOGGER("--> Final Theta Values (", true)
     for (int i = 0; i < parameters_number; i++) {

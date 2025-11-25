@@ -21,6 +21,15 @@ if (PC_MAGMA_FOUND)
     set(MAGMA_LIBRARY_DIRS ${PC_MAGMA_LIBDIR})
     set(MAGMA_LIBRARIES ${PC_MAGMA_LIBRARIES})
     set(MAGMA_VERSION ${PC_MAGMA_VERSION})
+    # Filter out magma_sparse and CUDA libraries from MAGMA_LIBRARIES
+    set(FILTERED_MAGMA_LIBS "")
+    foreach(lib ${MAGMA_LIBRARIES})
+        # Check if it's a CUDA library or magma_sparse (handle various formats: -lmagma_sparse, magma_sparse, or full path)
+        if(NOT lib MATCHES "(cudart|cublas|cusparse|curand|cufft|cusolver|magma_sparse)")
+            list(APPEND FILTERED_MAGMA_LIBS ${lib})
+        endif()
+    endforeach()
+    set(MAGMA_LIBRARIES ${FILTERED_MAGMA_LIBS})
     message(STATUS "MAGMA FROM PKGConfig}")
     message(STATUS "PC_MAGMA_LIBDIR: ${PC_MAGMA_LIBDIR}")
     message(STATUS "PC_MAGMA_LIBRARY_DIRS: ${PC_MAGMA_LIBRARY_DIRS}")
@@ -48,11 +57,6 @@ if (NOT PC_MAGMA_FOUND)
         PATHS ${MAGMA_ROOT}/lib ${MAGMA_ROOT}/lib64
     )
 
-    find_library(MAGMA_SPARSE_LIBRARY
-        NAMES magma_sparse
-        PATHS ${MAGMA_ROOT}/lib ${MAGMA_ROOT}/lib64
-    )
-
     find_library(MAGMA_CUDA_LIBRARY
         NAMES magma_cuda
         PATHS ${MAGMA_ROOT}/lib ${MAGMA_ROOT}/lib64
@@ -61,9 +65,6 @@ if (NOT PC_MAGMA_FOUND)
     # Compose include/libraries variables to match pkg-config interface
     set(MAGMA_INCLUDE_DIRS ${MAGMA_INCLUDE_DIR})
     set(MAGMA_LIBRARIES ${MAGMA_LIBRARY})
-    if(MAGMA_SPARSE_LIBRARY)
-        list(APPEND MAGMA_LIBRARIES ${MAGMA_SPARSE_LIBRARY})
-    endif()
     if(MAGMA_CUDA_LIBRARY)
         list(APPEND MAGMA_LIBRARIES ${MAGMA_CUDA_LIBRARY})
     endif()
@@ -105,7 +106,6 @@ mark_as_advanced(
     MAGMA_INCLUDE_DIR
     MAGMA_INCLUDE_DIRS
     MAGMA_LIBRARY
-    MAGMA_SPARSE_LIBRARY
     MAGMA_CUDA_LIBRARY
     MAGMA_LIBRARIES
     MAGMA_DEFINITIONS
