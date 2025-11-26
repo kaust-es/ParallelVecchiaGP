@@ -59,20 +59,16 @@ list(APPEND LIBS ${MPI_LIBRARIES})
 
 # VecchiaGP depends on GFortran
 # -------------------------------
+enable_language(Fortran)
+
 include(ImportGFortran)
 
 # VecchiaGP depends on GSL
 # -------------------------------
 include(ImportGSL)
-
 # VecchiaGP depends on NLOPT
 # -------------------------------
 include(ImportNLOPT)
-
-# VecchiaGP depends on LAPACK/BLASPP
-# -------------------------------
-include(ImportBLASPP)
-include(ImportLapack)
 
 # VecchiaGP Linear Algebra Backends
 # -------------------------------

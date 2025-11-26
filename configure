@@ -166,6 +166,22 @@ else
   cmake_command_bin="${INSTALL_PREFIX}/CMAKE/bin/cmake"
 fi
 
+# --- Force system CUDA (fast) ---
+export CUDA_SYS_LIB=/usr/lib/x86_64-linux-gnu
+
+export CUDAToolkit_ROOT=/usr
+export CUDA_TOOLKIT_ROOT_DIR=/usr
+export CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES=$CUDA_SYS_LIB
+
+export CUDA_cudart_LIBRARY=$CUDA_SYS_LIB/libcudart.so.11.0
+export CUDA_cublas_LIBRARY=$CUDA_SYS_LIB/libcublas.so.11
+export CUDA_cusparse_LIBRARY=$CUDA_SYS_LIB/libcusparse.so.11
+
+# Remove Spack CUDA from PATH and LD_LIBRARY_PATH
+#export PATH=$(echo "$PATH" | sed 's|/opt/stats/spack-modules/spack/opt/spack[^:]*||g')
+#export LD_LIBRARY_PATH=$(echo "$LD_LIBRARY_PATH" | sed 's|/opt/stats/spack-modules/spack/opt/spack[^:]*||g')
+
+
 "$cmake_command_bin" "$DEVELOPER_WARNINGS" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
   -DCMAKE_BUILD_TYPE=RELEASE \
   -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
