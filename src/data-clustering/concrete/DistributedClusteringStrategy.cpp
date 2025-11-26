@@ -21,6 +21,7 @@
 #include <numeric>
 #include <omp.h>
 #include <chrono>
+#include <atomic>
 #include <cmath>
 #include <set>
 
@@ -222,6 +223,7 @@ static std::vector<int> randomClustering(const std::vector<PointMetadata> &metad
     float alpha_expansion = is_test ? 99999999.0f : 15000.0f;
     
     // Initialize random number generator
+    auto start_init = std::chrono::high_resolution_clock::now();
     std::mt19937 gen(seed);
 
     // 1. Randomly select k centers without replacement
@@ -239,8 +241,15 @@ static std::vector<int> randomClustering(const std::vector<PointMetadata> &metad
 
     // Track the size of each cluster
     std::vector<int> clusterSizes(k, 1); // Initialize with 1 because we already assigned centers
+    
+    auto end_init = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> duration_init = end_init - start_init;
+    if (rank == 0) {
+        std::cout << "    [SubDetail] Random center selection: " << duration_init.count() << " s" << std::endl;
+    }
 
     // 2. Assign remaining points to nearest center
+    auto start_assignment_loop = std::chrono::high_resolution_clock::now();
 #pragma omp parallel for schedule(static)
     for (int i = 0; i < numPoints; ++i)
     {
@@ -297,7 +306,15 @@ static std::vector<int> randomClustering(const std::vector<PointMetadata> &metad
         clusterSizes[nearestCluster]++;
     }
     
+    auto end_assignment_loop = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> duration_assignment_loop = end_assignment_loop - start_assignment_loop;
+    if (rank == 0) {
+        std::cout << "    [SubDetail] Point-to-center assignment loop: " << duration_assignment_loop.count() << " s" << std::endl;
+        std::cout << "    [SubDetail]   (numPoints=" << numPoints << ", k=" << k << ", dim=" << dim << ")" << std::endl;
+    }
+    
     // Print statistics about cluster sizes
+    auto start_stats = std::chrono::high_resolution_clock::now();
     if (rank == 0) {
         auto minmax = std::minmax_element(clusterSizes.begin(), clusterSizes.end());
         double avg = std::accumulate(clusterSizes.begin(), clusterSizes.end(), 0.0) / k;
@@ -306,6 +323,11 @@ static std::vector<int> randomClustering(const std::vector<PointMetadata> &metad
         std::cout << "  Smallest cluster: " << *minmax.first << std::endl; 
         std::cout << "  Largest cluster: " << *minmax.second << std::endl;
         std::cout << "  Average cluster size: " << avg << std::endl;
+    }
+    auto end_stats = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> duration_stats = end_stats - start_stats;
+    if (rank == 0) {
+        std::cout << "    [SubDetail] Cluster statistics: " << duration_stats.count() << " s" << std::endl;
     }
 
     return clusters;
@@ -453,6 +475,7 @@ static void finerPartition(const std::vector<PointMetadata> &metadata, int numBl
     int size = VecchiaHardware::GetMPISize();
 
     // Perform clustering
+    auto start_clustering = std::chrono::high_resolution_clock::now();
     std::vector<int> clusters;
     if (numBlocksPerProcess * 2 < metadata.size())
     {
@@ -481,11 +504,30 @@ static void finerPartition(const std::vector<PointMetadata> &metadata, int numBl
         clusters.resize(metadata.size());
         std::iota(clusters.begin(), clusters.end(), 0);
     }
+    auto end_clustering = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> duration_clustering = end_clustering - start_clustering;
+    
+    double max_clustering_time;
+    double clustering_time_seconds = duration_clustering.count();
+    MPI_Allreduce(&clustering_time_seconds, &max_clustering_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    if (rank == 0) {
+        std::cout << "  [Detail] Clustering algorithm (" << aConfigurations.GetClusteringMethod() << "): " << max_clustering_time << " s" << std::endl;
+    }
 
     // Assign points to clusters
+    auto start_assignment = std::chrono::high_resolution_clock::now();
     for (size_t i = 0; i < metadata.size(); ++i)
     {
         finerPartitions[clusters[i]].push_back(metadata[i]);
+    }
+    auto end_assignment = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> duration_assignment = end_assignment - start_assignment;
+    
+    double max_assignment_time;
+    double assignment_time_seconds = duration_assignment.count();
+    MPI_Allreduce(&assignment_time_seconds, &max_assignment_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    if (rank == 0) {
+        std::cout << "  [Detail] Point assignment to clusters: " << max_assignment_time << " s" << std::endl;
     }
 #else
     throw std::runtime_error("finerPartition requires MPI support (USE_MPI)");
@@ -922,9 +964,19 @@ static void nearest_neighbor_search(std::vector<BlockInfo> &blockInfos, std::vec
     int size = VecchiaHardware::GetMPISize();
     
     // Reorder received blocks based on globalOrder
+    auto start_sort = std::chrono::high_resolution_clock::now();
     std::sort(receivedBlocks.begin(), receivedBlocks.end(), [](const BlockInfo& a, const BlockInfo& b) {
         return a.globalOrder < b.globalOrder;
     });
+    auto end_sort = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> duration_sort = end_sort - start_sort;
+    
+    double max_sort_time;
+    double sort_time_seconds = duration_sort.count();
+    MPI_Allreduce(&sort_time_seconds, &max_sort_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    if (rank == 0) {
+        std::cout << "  [Detail] Sorting received blocks: " << max_sort_time << " s" << std::endl;
+    }
 
     int m_nn = pred_tag ? aConfigurations.GetTestConditioningSize() : aConfigurations.GetConditioningSize();
     double distance_threshold = distance;
@@ -934,10 +986,20 @@ static void nearest_neighbor_search(std::vector<BlockInfo> &blockInfos, std::vec
     int numPointsPerProcess = aConfigurations.GetProblemSize() / size + (rank < aConfigurations.GetProblemSize() % size ? 1 : 0);
     
     // Perform nearest neighbor search
+    auto start_nn_computation = std::chrono::high_resolution_clock::now();
+    
+    // Counters for statistics
+    std::atomic<long long> total_distance_calcs(0);
+    std::atomic<long long> total_candidates_considered(0);
+    std::atomic<long long> total_neighbors_found(0);
+    
     #pragma omp parallel for schedule(dynamic)
     for (size_t i = 0; i < blockInfos.size(); ++i) {
         auto& block = blockInfos[i];
         std::vector<std::tuple<double, std::vector<double>, double>> distancesMeta;
+        
+        long long block_distance_calcs = 0;
+        long long block_candidates = 0;
 
         for (auto& prevBlock : receivedBlocks) {
             if (prevBlock.globalOrder >= block.globalOrder){
@@ -945,11 +1007,16 @@ static void nearest_neighbor_search(std::vector<BlockInfo> &blockInfos, std::vec
             }
             for (size_t j = 0; j < prevBlock.blocks.size(); ++j) {
                 double distance = calculateDistance(block.center, prevBlock.blocks[j]);
+                block_distance_calcs++;
                 if (distance < distance_threshold || block.globalOrder <= 200){
                     distancesMeta.emplace_back(distance, prevBlock.blocks[j], prevBlock.observations_blocks[j]);
+                    block_candidates++;
                 }
             }
         }
+        
+        total_distance_calcs += block_distance_calcs;
+        total_candidates_considered += block_candidates;
         
         // Handle classic Vecchia case
         if (block.globalOrder <= m_nn && numBlocksPerProcess == numPointsPerProcess){
@@ -989,9 +1056,29 @@ static void nearest_neighbor_search(std::vector<BlockInfo> &blockInfos, std::vec
         std::sort(distancesMeta.begin(), distancesMeta.end(), [](const auto& a, const auto& b) {
             return std::get<0>(a) < std::get<0>(b);
         });
-        for (size_t k = 0; k < std::min(static_cast<size_t>(m_nn), distancesMeta.size()); ++k) {
+        size_t neighbors_added = std::min(static_cast<size_t>(m_nn), distancesMeta.size());
+        for (size_t k = 0; k < neighbors_added; ++k) {
             block.nearestNeighbors.push_back(std::get<1>(distancesMeta[k]));
             block.observations_nearestNeighbors.push_back(std::get<2>(distancesMeta[k]));
+        }
+        total_neighbors_found += neighbors_added;
+    }
+    
+    auto end_nn_computation = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> duration_nn_computation = end_nn_computation - start_nn_computation;
+    
+    double max_nn_computation_time;
+    double nn_computation_time_seconds = duration_nn_computation.count();
+    MPI_Allreduce(&nn_computation_time_seconds, &max_nn_computation_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    if (rank == 0) {
+        std::cout << "  [Detail] NN distance computation & selection: " << max_nn_computation_time << " s" << std::endl;
+        std::cout << "  [Detail] Average blocks processed: " << blockInfos.size() << std::endl;
+        std::cout << "  [Detail] Average candidate blocks: " << receivedBlocks.size() << std::endl;
+        std::cout << "    [SubDetail] Total distance calculations: " << total_distance_calcs.load() << std::endl;
+        std::cout << "    [SubDetail] Total candidates considered: " << total_candidates_considered.load() << std::endl;
+        std::cout << "    [SubDetail] Total neighbors found: " << total_neighbors_found.load() << std::endl;
+        if (blockInfos.size() > 0) {
+            std::cout << "    [SubDetail] Avg distance calcs per block: " << total_distance_calcs.load() / blockInfos.size() << std::endl;
         }
     }
 #else
@@ -1181,7 +1268,9 @@ ClusteringResult<T> DistributedClusteringStrategy<T>::ComputeClusters(
     std::vector<std::vector<PointMetadata>> finerPartitions_test;
     int numBlocksPerProcess = aConfigurations.GetBlockSize() / size + (rank < aConfigurations.GetBlockSize() % size ? 1 : 0);
     int numBlocksPerProcess_test = aConfigurations.GetTestBlocksTotal() / size + (rank < aConfigurations.GetTestBlocksTotal() % size ? 1 : 0);
+    
     finerPartition(localPoints_partition, numBlocksPerProcess, finerPartitions, aConfigurations, false);
+    
     if(pred_tag){
         finerPartition(localPoints_partition_test, numBlocksPerProcess_test, finerPartitions_test, aConfigurations, true);
     }

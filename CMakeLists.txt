@@ -26,25 +26,36 @@ option(USE_R "Enable the use of R and Rcpp in the project" OFF)
 # Cmake Module Paths
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
 
+# Project Name and Version (must come early for language enabling)
+project(VecchiaGP VERSION 1.0.0 LANGUAGES C CXX)
+
+# Show the current version of CMake.
+message(STATUS "CMAKE VERSION: ${CMAKE_VERSION}")
+
 message("")
 message("---------------------------------------- CUDA")
 # Enable CUDA and include CudaToolchain
 add_definitions(-DUSE_CUDA=TRUE)
+set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)
 enable_language(CUDA)
 include(toolchains/CudaToolchain)
-
-# Project Name and Version
-project(VecchiaGP VERSION 1.0.0)
-
-# Show the current version of CMake.
-message(STATUS "CMAKE VERSION: ${CMAKE_VERSION}")
-# Enable C++ language
-enable_language(CXX)
 # Get the current path of the project.
 add_compile_definitions(PROJECT_SOURCE_DIR="${PROJECT_SOURCE_DIR}/")
 
 # Set kernels path.
 add_definitions(-DKERNELS_PATH="${PROJECT_SOURCE_DIR}/inst/include/kernels/concrete/")
+
+# VecchiaGP depends on OpenMP (required)
+# -------------------------------
+message("")
+message("---------------------------------------- OpenMP")
+find_package(OpenMP REQUIRED)
+if(OpenMP_CXX_FOUND)
+    message(STATUS "OpenMP found: ${OpenMP_CXX_VERSION}")
+    list(APPEND LIBS OpenMP::OpenMP_CXX)
+else()
+    message(FATAL_ERROR "OpenMP not found")
+endif()
 
 # VecchiaGP depends on MPI (required)
 # -------------------------------

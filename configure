@@ -62,7 +62,7 @@ BUILDING_EXAMPLES="OFF"
 VERBOSE="OFF"
 USE_R="OFF"
 SHOW_WARNINGS="OFF"
-COMPILE_FLAGS="-Wl,--no-as-needed -w -fpic"
+COMPILE_FLAGS="-Wl,--no-as-needed -w -fpic -O3 -fopenmp -march=native"
 DEVELOPER_WARNINGS="-Wno-dev"
 
 # Parse command line options

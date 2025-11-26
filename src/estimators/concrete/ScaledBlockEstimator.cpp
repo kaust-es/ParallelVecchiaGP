@@ -729,121 +729,201 @@ double performComputationOnGPU(const GpuData &gpuData, const std::vector<double>
     // For all kernels in ScaledBlock mode: theta = [sigma2, nugget, range...]
     int range_offset = 2;  // Skip sigma2 and nugget to get to range parameters
     
+    // CUDA event setup for timing
+    cudaEvent_t evStart, evStop;
+    checkCudaError(cudaEventCreate(&evStart));
+    checkCudaError(cudaEventCreate(&evStop));
+    auto time_region = [&](auto fn)->double{
+        checkCudaError(cudaEventRecord(evStart, stream));
+        fn();
+        checkCudaError(cudaEventRecord(evStop, stream));
+        checkCudaError(cudaEventSynchronize(evStop));
+        float ms = 0.0f;
+        checkCudaError(cudaEventElapsedTime(&ms, evStart, evStop));
+        return static_cast<double>(ms) / 1000.0; // seconds
+    };
+
+    // Timing variables
+    double t_memcpy_prep = 0.0;
+    double t_matgen_cov_blocks = 0.0;
+    double t_matgen_cross_blocks = 0.0;
+    double t_matgen_conditioning_blocks = 0.0;
+    double t_potrf_neighbors = 0.0;
+    double t_trsm_neighbors_cross = 0.0;
+    double t_trsm_neighbors_obs = 0.0;
+    double t_gemm_crosst_cross = 0.0;
+    double t_gemm_crosst_y = 0.0;
+    double t_geadd_correction = 0.0;
+    double t_potrf_final = 0.0;
+    double t_trsm_final = 0.0;
+    double t_norm2_batch = 0.0;
+    double t_log_det_batch = 0.0;
+
     // Copy data from device to device (for observations backup)
-    checkCudaError(cudaMemcpy(gpuData.d_observations_neighbors_copy_device, 
-                               gpuData.d_observations_neighbors_device, 
-                               gpuData.total_observations_neighbors_size, 
-                               cudaMemcpyDeviceToDevice));
-    checkCudaError(cudaMemcpy(gpuData.d_observations_copy_device, 
-                               gpuData.d_observations_device, 
-                               gpuData.total_observations_points_size, 
-                               cudaMemcpyDeviceToDevice));
-    checkCudaError(cudaMemcpy(gpuData.d_range_device, 
-                               theta.data() + range_offset, 
-                               dim * sizeof(double), 
-                               cudaMemcpyHostToDevice));
+    double local_t_memcpy_prep = time_region([&](){
+        checkCudaError(cudaMemcpy(gpuData.d_observations_neighbors_copy_device, 
+                                   gpuData.d_observations_neighbors_device, 
+                                   gpuData.total_observations_neighbors_size, 
+                                   cudaMemcpyDeviceToDevice));
+        checkCudaError(cudaMemcpy(gpuData.d_observations_copy_device, 
+                                   gpuData.d_observations_device, 
+                                   gpuData.total_observations_points_size, 
+                                   cudaMemcpyDeviceToDevice));
+        checkCudaError(cudaMemcpy(gpuData.d_range_device, 
+                                   theta.data() + range_offset, 
+                                   dim * sizeof(double), 
+                                   cudaMemcpyHostToDevice));
+    });
+    MPI_Allreduce(&local_t_memcpy_prep, &t_memcpy_prep, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
     
     // 1. Generate covariance matrices using batched operations
-    // TODO: Implement compute_covariance_vbatched in gpukernels.cu
-    // For now, this is a placeholder that will need the actual GPU kernel implementation
-    compute_covariance_vbatched(gpuData.d_locs_array,
-                gpuData.d_lda_locs, 1, gpuData.total_locs_num_device,
-                gpuData.d_locs_array,
-                gpuData.d_lda_locs, 1, gpuData.total_locs_num_device,
-                gpuData.d_cov_array, gpuData.d_ldda_cov, gpuData.d_lda_locs,
-                batchCount,
-                dim, theta, gpuData.d_range_device, true, stream, aConfigurations);
-    compute_covariance_vbatched(gpuData.d_locs_neighbors_array, 
-                gpuData.d_lda_locs_neighbors, 1, gpuData.total_locs_neighbors_num_device,
-                gpuData.d_locs_array,
-                gpuData.d_lda_locs, 1, gpuData.total_locs_num_device,
-                gpuData.d_cross_cov_array, gpuData.d_ldda_cross_cov, gpuData.d_lda_locs,
-                batchCount,
-                dim, theta, gpuData.d_range_device, false, stream, aConfigurations);
-    compute_covariance_vbatched(gpuData.d_locs_neighbors_array,
-                gpuData.d_lda_locs_neighbors, 1, gpuData.total_locs_neighbors_num_device,
-                gpuData.d_locs_neighbors_array, 
-                gpuData.d_lda_locs_neighbors, 1, gpuData.total_locs_neighbors_num_device,
-                gpuData.d_conditioning_cov_array, gpuData.d_ldda_conditioning_cov, gpuData.d_lda_locs_neighbors,
-                batchCount,
-                dim, theta, gpuData.d_range_device, true, stream, aConfigurations);
+    double local_t_matgen_cov_blocks = time_region([&](){
+        compute_covariance_vbatched(gpuData.d_locs_array,
+                    gpuData.d_lda_locs, 1, gpuData.total_locs_num_device,
+                    gpuData.d_locs_array,
+                    gpuData.d_lda_locs, 1, gpuData.total_locs_num_device,
+                    gpuData.d_cov_array, gpuData.d_ldda_cov, gpuData.d_lda_locs,
+                    batchCount,
+                    dim, theta, gpuData.d_range_device, true, stream, aConfigurations);
+    });
+    MPI_Allreduce(&local_t_matgen_cov_blocks, &t_matgen_cov_blocks, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+
+    double local_t_matgen_cross_blocks = time_region([&](){
+        compute_covariance_vbatched(gpuData.d_locs_neighbors_array, 
+                    gpuData.d_lda_locs_neighbors, 1, gpuData.total_locs_neighbors_num_device,
+                    gpuData.d_locs_array,
+                    gpuData.d_lda_locs, 1, gpuData.total_locs_num_device,
+                    gpuData.d_cross_cov_array, gpuData.d_ldda_cross_cov, gpuData.d_lda_locs,
+                    batchCount,
+                    dim, theta, gpuData.d_range_device, false, stream, aConfigurations);
+    });
+    MPI_Allreduce(&local_t_matgen_cross_blocks, &t_matgen_cross_blocks, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+
+    double local_t_matgen_conditioning_blocks = time_region([&](){
+        compute_covariance_vbatched(gpuData.d_locs_neighbors_array,
+                    gpuData.d_lda_locs_neighbors, 1, gpuData.total_locs_neighbors_num_device,
+                    gpuData.d_locs_neighbors_array, 
+                    gpuData.d_lda_locs_neighbors, 1, gpuData.total_locs_neighbors_num_device,
+                    gpuData.d_conditioning_cov_array, gpuData.d_ldda_conditioning_cov, gpuData.d_lda_locs_neighbors,
+                    batchCount,
+                    dim, theta, gpuData.d_range_device, true, stream, aConfigurations);
+    });
+    MPI_Allreduce(&local_t_matgen_conditioning_blocks, &t_matgen_conditioning_blocks, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
     
     // 2. Compute conditioning correction (Schur complement)
     // 2.1 Cholesky factorization of conditioning covariance
-    checkMagmaError(magma_dpotrf_vbatched_max_nocheck(
-            MagmaLower, d_lda_locs_neighbors,
-            gpuData.d_conditioning_cov_array, d_ldda_conditioning_cov,
-            dinfo_magma, batchCount, max_m, queue));
+    double local_t_potrf_neighbors = time_region([&](){
+        checkMagmaError(magma_dpotrf_vbatched_max_nocheck(
+                MagmaLower, d_lda_locs_neighbors,
+                gpuData.d_conditioning_cov_array, d_ldda_conditioning_cov,
+                dinfo_magma, batchCount, max_m, queue));
+    });
+    MPI_Allreduce(&local_t_potrf_neighbors, &t_potrf_neighbors, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
     
     // 2.2 Triangular solve (TRSM)
-    magmablas_dtrsm_vbatched_max_nocheck(MagmaLeft, MagmaLower, MagmaNoTrans, MagmaNonUnit, 
-                        max_m, max_n1, 
-                        d_lda_locs_neighbors, d_lda_locs,
-                        1.,
-                        gpuData.d_conditioning_cov_array, d_ldda_conditioning_cov,
-                        gpuData.d_cross_cov_array, d_ldda_cross_cov,
-                        batchCount, queue);
-    magmablas_dtrsm_vbatched_max_nocheck(MagmaLeft, MagmaLower, MagmaNoTrans, MagmaNonUnit, 
-                        max_m, max_n2, 
-                        d_lda_locs_neighbors, d_const1,
-                        1.,
-                        gpuData.d_conditioning_cov_array, d_ldda_conditioning_cov,
-                        gpuData.d_observations_neighbors_copy_array, d_ldda_neighbors,
-                        batchCount, queue);
+    double local_t_trsm_neighbors_cross = time_region([&](){
+        magmablas_dtrsm_vbatched_max_nocheck(MagmaLeft, MagmaLower, MagmaNoTrans, MagmaNonUnit, 
+                            max_m, max_n1, 
+                            d_lda_locs_neighbors, d_lda_locs,
+                            1.,
+                            gpuData.d_conditioning_cov_array, d_ldda_conditioning_cov,
+                            gpuData.d_cross_cov_array, d_ldda_cross_cov,
+                            batchCount, queue);
+    });
+    MPI_Allreduce(&local_t_trsm_neighbors_cross, &t_trsm_neighbors_cross, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+
+    double local_t_trsm_neighbors_obs = time_region([&](){
+        magmablas_dtrsm_vbatched_max_nocheck(MagmaLeft, MagmaLower, MagmaNoTrans, MagmaNonUnit, 
+                            max_m, max_n2, 
+                            d_lda_locs_neighbors, d_const1,
+                            1.,
+                            gpuData.d_conditioning_cov_array, d_ldda_conditioning_cov,
+                            gpuData.d_observations_neighbors_copy_array, d_ldda_neighbors,
+                            batchCount, queue);
+    });
+    MPI_Allreduce(&local_t_trsm_neighbors_obs, &t_trsm_neighbors_obs, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
     
     // 2.3 Matrix multiplication (GEMM) for covariance and mean correction
-    magmablas_dgemm_vbatched_max_nocheck(MagmaTrans, MagmaNoTrans,
-                             d_lda_locs, d_lda_locs, d_lda_locs_neighbors,
-                             1, gpuData.d_cross_cov_array, d_ldda_cross_cov,
-                                gpuData.d_cross_cov_array, d_ldda_cross_cov,
-                             0, gpuData.d_cov_correction_array, d_ldda_cov,
-                             batchCount, 
-                             max_n1, max_n1, max_m, 
-                             queue);
-    magmablas_dgemm_vbatched_max_nocheck(MagmaTrans, MagmaNoTrans,
-                             d_lda_locs, d_const1, d_lda_locs_neighbors,
-                             1, gpuData.d_cross_cov_array, d_ldda_cross_cov,
-                                gpuData.d_observations_neighbors_copy_array, d_ldda_neighbors,
-                             0, gpuData.d_mu_correction_array, d_ldda_locs,
-                             batchCount, 
-                             max_n1, max_n2, max_m,
-                             queue);
+    double local_t_gemm_crosst_cross = time_region([&](){
+        magmablas_dgemm_vbatched_max_nocheck(MagmaTrans, MagmaNoTrans,
+                                 d_lda_locs, d_lda_locs, d_lda_locs_neighbors,
+                                 1, gpuData.d_cross_cov_array, d_ldda_cross_cov,
+                                    gpuData.d_cross_cov_array, d_ldda_cross_cov,
+                                 0, gpuData.d_cov_correction_array, d_ldda_cov,
+                                 batchCount, 
+                                 max_n1, max_n1, max_m, 
+                                 queue);
+    });
+    MPI_Allreduce(&local_t_gemm_crosst_cross, &t_gemm_crosst_cross, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+
+    double local_t_gemm_crosst_y = time_region([&](){
+        magmablas_dgemm_vbatched_max_nocheck(MagmaTrans, MagmaNoTrans,
+                                 d_lda_locs, d_const1, d_lda_locs_neighbors,
+                                 1, gpuData.d_cross_cov_array, d_ldda_cross_cov,
+                                    gpuData.d_observations_neighbors_copy_array, d_ldda_neighbors,
+                                 0, gpuData.d_mu_correction_array, d_ldda_locs,
+                                 batchCount, 
+                                 max_n1, max_n2, max_m,
+                                 queue);
+    });
+    MPI_Allreduce(&local_t_gemm_crosst_y, &t_gemm_crosst_y, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
     
     // 2.4 Compute conditional mean and variance
-    for (size_t i = 0; i < batchCount; ++i) {
-        // Conditional variance: cov -= cov_correction
-        magmablas_dgeadd(gpuData.lda_locs[i], gpuData.lda_locs[i],
-                        -1.,
-                        gpuData.h_cov_correction_array[i], gpuData.ldda_locs[i], 
-                        gpuData.h_cov_array[i], gpuData.ldda_cov[i],
-                        queue);
-        // Conditional mean: obs -= mu_correction
-        magmablas_dgeadd(gpuData.lda_locs[i], 1,
-                        -1.,
-                        gpuData.h_mu_correction_array[i], gpuData.ldda_locs[i], 
-                        gpuData.h_observations_copy_array[i], gpuData.ldda_locs[i],
-                        queue);
-    }
+    double local_t_geadd_correction = time_region([&](){
+        for (size_t i = 0; i < batchCount; ++i) {
+            // Conditional variance: cov -= cov_correction
+            magmablas_dgeadd(gpuData.lda_locs[i], gpuData.lda_locs[i],
+                            -1.,
+                            gpuData.h_cov_correction_array[i], gpuData.ldda_locs[i], 
+                            gpuData.h_cov_array[i], gpuData.ldda_cov[i],
+                            queue);
+            // Conditional mean: obs -= mu_correction
+            magmablas_dgeadd(gpuData.lda_locs[i], 1,
+                            -1.,
+                            gpuData.h_mu_correction_array[i], gpuData.ldda_locs[i], 
+                            gpuData.h_observations_copy_array[i], gpuData.ldda_locs[i],
+                            queue);
+        }
+    });
+    MPI_Allreduce(&local_t_geadd_correction, &t_geadd_correction, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
     
     // 3. Compute log-likelihood
     // 3.1 Cholesky factorization of conditional covariance
-    checkMagmaError(magma_dpotrf_vbatched(
-            MagmaLower, d_lda_locs,
-            gpuData.d_cov_array, d_ldda_cov,
-            dinfo_magma, batchCount, queue));
+    double local_t_potrf_final = time_region([&](){
+        checkMagmaError(magma_dpotrf_vbatched(
+                MagmaLower, d_lda_locs,
+                gpuData.d_cov_array, d_ldda_cov,
+                dinfo_magma, batchCount, queue));
+    });
+    MPI_Allreduce(&local_t_potrf_final, &t_potrf_final, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
     
     // 3.2 Triangular solve for observations
-    magmablas_dtrsm_vbatched(
-        MagmaLeft, MagmaLower, MagmaNoTrans, MagmaNonUnit,
-        d_lda_locs, d_const1, 1.,
-        gpuData.d_cov_array, d_ldda_cov,
-        gpuData.d_observations_copy_array, d_ldda_locs,
-        batchCount, queue);
+    double local_t_trsm_final = time_region([&](){
+        magmablas_dtrsm_vbatched(
+            MagmaLeft, MagmaLower, MagmaNoTrans, MagmaNonUnit,
+            d_lda_locs, d_const1, 1.,
+            gpuData.d_cov_array, d_ldda_cov,
+            gpuData.d_observations_copy_array, d_ldda_locs,
+            batchCount, queue);
+    });
+    MPI_Allreduce(&local_t_trsm_final, &t_trsm_final, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
     
     // 3.3 Compute norm and determinant
-    // TODO: Implement norm2_batch and log_det_batch in gpukernels.cu
-    double norm2_item = norm2_batch(d_lda_locs, gpuData.d_observations_copy_array, d_ldda_locs, batchCount, stream);
-    double log_det_item = log_det_batch(d_lda_locs, gpuData.d_cov_array, d_ldda_cov, batchCount, stream);
+    double norm2_item = 0.0;
+    {
+        double local_t = time_region([&](){
+            norm2_item = norm2_batch(d_lda_locs, gpuData.d_observations_copy_array, d_ldda_locs, batchCount, stream);
+        });
+        MPI_Allreduce(&local_t, &t_norm2_batch, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    }
+    
+    double log_det_item = 0.0;
+    {
+        double local_t = time_region([&](){
+            log_det_item = log_det_batch(d_lda_locs, gpuData.d_cov_array, d_ldda_cov, batchCount, stream);
+        });
+        MPI_Allreduce(&local_t, &t_log_det_batch, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    }
     
     // 3.4 Compute local log-likelihood
     double log_likelihood = -0.5 * (log_det_item + norm2_item);
@@ -851,6 +931,32 @@ double performComputationOnGPU(const GpuData &gpuData, const std::vector<double>
     // 3.5 MPI reduction to get total log-likelihood
     double log_likelihood_all = 0;
     MPI_Allreduce(&log_likelihood, &log_likelihood_all, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    
+    // Print per-operation timings (rank 0 only) - matching legacy code format
+    if (rank == 0) {
+        std::cout << std::fixed << std::setprecision(6);
+        std::cout << "[GPU] MatGen cov blocks (ms): " << t_matgen_cov_blocks * 1000.0 << std::endl;
+        std::cout << "[GPU] MatGen cross blocks (ms): " << t_matgen_cross_blocks * 1000.0 << std::endl;
+        std::cout << "[GPU] MatGen conditioning blocks (ms): " << t_matgen_conditioning_blocks * 1000.0 << std::endl;
+        std::cout << "[GPU] POTRF(neighbors) (ms): " << t_potrf_neighbors * 1000.0 << std::endl;
+        std::cout << "[GPU] TRSM(neighbors->cross) (ms): " << t_trsm_neighbors_cross * 1000.0 << std::endl;
+        std::cout << "[GPU] TRSM(neighbors->obs) (ms): " << t_trsm_neighbors_obs * 1000.0 << std::endl;
+        std::cout << "[GPU] GEMM(cross^T*cross) (ms): " << t_gemm_crosst_cross * 1000.0 << std::endl;
+        std::cout << "[GPU] GEMM(cross^T*y_nn) (ms): " << t_gemm_crosst_y * 1000.0 << std::endl;
+        std::cout << "[GPU] POTRF(final) (ms): " << t_potrf_final * 1000.0 << std::endl;
+        std::cout << "[GPU] TRSM(final solve) (ms): " << t_trsm_final * 1000.0 << std::endl;
+        std::cout << "[GPU] norm2_batch (ms): " << t_norm2_batch * 1000.0 << std::endl;
+        std::cout << "[GPU] log_det_batch (ms): " << t_log_det_batch * 1000.0 << std::endl;
+        double t_total_sec =
+            t_matgen_cov_blocks + t_matgen_cross_blocks + t_matgen_conditioning_blocks +
+            t_potrf_neighbors + t_trsm_neighbors_cross + t_trsm_neighbors_obs +
+            t_gemm_crosst_cross + t_gemm_crosst_y +
+            t_potrf_final + t_trsm_final + t_norm2_batch + t_log_det_batch;
+        std::cout << "[GPU] Total (ms): " << t_total_sec * 1000.0 << std::endl;
+    }
+
+    checkCudaError(cudaEventDestroy(evStart));
+    checkCudaError(cudaEventDestroy(evStop));
     
     return log_likelihood_all;
 }
