@@ -47,16 +47,15 @@ __device__ void Matern72_scaled_matcov_vbatched_kernel_device(
         for (int k = 0; k < dim; k++) {
             double x1 = d_X1[gtx * incx1 + k * stridex1];
             double x2 = d_X2[gty * incx2 + k * stridex2];
-            dist_square += (x1 - x2) * (x1 - x2) / (range[k] * range[k]);
+            dist_square += (x1 - x2) * (x1 - x2) / range[k] / range[k];
         }
         double scaled_distance = sqrt(dist_square);
         double a0 = 1.0;
         double a1 = 1.0;
         double a2 = 2.0 / 5.0;
         double a3 = 1.0 / 15.0;
-        double item_poly = a0 + a1 * scaled_distance + a2 * scaled_distance * scaled_distance + 
-                          a3 * scaled_distance * scaled_distance * scaled_distance;
-        d_C[gtx + gty * ldc] = sigma2 * item_poly * exp(-scaled_distance);
+        double item_poly = a0 + a1 * scaled_distance + a2 * scaled_distance * scaled_distance + a3 * scaled_distance * scaled_distance * scaled_distance;
+        d_C[gtx + gty * ldc] = sigma2 * item_poly * exp( - scaled_distance );
     }
     // Add nugget
     if (gtx == gty && gtx < ldx1 && gty < ldx2 && nugget_tag) {
@@ -277,8 +276,8 @@ __global__ void log_det_batch_kernel(const int* lda, const double* const* d_A_ar
     // Each thread handles one diagonal element if possible
     if (threadIdx.x < n) {
         for (int i = threadIdx.x; i < n; i += blockDim.x) {
-            double val = d_A[i * ldda_matrix + i];  // Diagonal element
-            thread_sum += 2.0 * log(val);  // Factor of 2 because det(A) = det(L)^2
+            double val = d_A[i * ldda_matrix + i];
+            thread_sum += 2 * log(val);
         }
     }
 
