@@ -206,12 +206,14 @@ T VecchiaGP<T>::VecchiaDataEstimation(Configurations &aConfigurations, std::uniq
     
     // Create nlopt
     double opt_f;
-    opt optimizing_function(nlopt::LN_BOBYQA, parameters_number);
+    opt optimizing_function(nlopt::LN_SBPLX, parameters_number);
     
     // Initialize problem's bound.
     optimizing_function.set_lower_bounds(aConfigurations.GetLowerBounds());
     optimizing_function.set_upper_bounds(aConfigurations.GetUpperBounds());
+    double tolerance_value = aConfigurations.GetTolerance();
     optimizing_function.set_ftol_abs(aConfigurations.GetTolerance());
+    
     // Set max iterations value.
     optimizing_function.set_maxeval(max_number_of_iterations);
     optimizing_function.set_max_objective(VecchiaMLETileAPI, (void *) modeling_data);

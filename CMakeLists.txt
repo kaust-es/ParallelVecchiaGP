@@ -26,25 +26,47 @@ option(USE_R "Enable the use of R and Rcpp in the project" OFF)
 # Cmake Module Paths
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
 
+# Project Name and Version
+project(VecchiaGP VERSION 1.0.0 LANGUAGES C CXX)
+
+# Show the current version of CMake.
+message(STATUS "CMAKE VERSION: ${CMAKE_VERSION}")
+
 message("")
 message("---------------------------------------- CUDA")
 # Enable CUDA and include CudaToolchain
 add_definitions(-DUSE_CUDA=TRUE)
+# Find CUDA compiler using environment variables and system paths
+if(NOT CMAKE_CUDA_COMPILER)
+    if(DEFINED ENV{CUDA_HOME})
+        find_program(CMAKE_CUDA_COMPILER nvcc HINTS $ENV{CUDA_HOME}/bin NO_DEFAULT_PATH)
+    endif()
+    if(NOT CMAKE_CUDA_COMPILER AND DEFINED ENV{CUDA_PATH})
+        find_program(CMAKE_CUDA_COMPILER nvcc HINTS $ENV{CUDA_PATH}/bin NO_DEFAULT_PATH)
+    endif()
+    if(NOT CMAKE_CUDA_COMPILER)
+        find_program(CMAKE_CUDA_COMPILER nvcc)
+    endif()
+endif()
 enable_language(CUDA)
 include(toolchains/CudaToolchain)
-
-# Project Name and Version
-project(VecchiaGP VERSION 1.0.0)
-
-# Show the current version of CMake.
-message(STATUS "CMAKE VERSION: ${CMAKE_VERSION}")
-# Enable C++ language
-enable_language(CXX)
 # Get the current path of the project.
 add_compile_definitions(PROJECT_SOURCE_DIR="${PROJECT_SOURCE_DIR}/")
 
 # Set kernels path.
 add_definitions(-DKERNELS_PATH="${PROJECT_SOURCE_DIR}/inst/include/kernels/concrete/")
+
+# VecchiaGP depends on OpenMP (required)
+# -------------------------------
+message("")
+message("---------------------------------------- OpenMP")
+find_package(OpenMP REQUIRED)
+if(OpenMP_CXX_FOUND)
+    message(STATUS "OpenMP found: ${OpenMP_CXX_VERSION}")
+    list(APPEND LIBS OpenMP::OpenMP_CXX)
+else()
+    message(FATAL_ERROR "OpenMP not found")
+endif()
 
 # VecchiaGP depends on MPI (required)
 # -------------------------------
@@ -59,20 +81,16 @@ list(APPEND LIBS ${MPI_LIBRARIES})
 
 # VecchiaGP depends on GFortran
 # -------------------------------
+enable_language(Fortran)
+
 include(ImportGFortran)
 
 # VecchiaGP depends on GSL
 # -------------------------------
 include(ImportGSL)
-
 # VecchiaGP depends on NLOPT
 # -------------------------------
 include(ImportNLOPT)
-
-# VecchiaGP depends on LAPACK/BLASPP
-# -------------------------------
-include(ImportBLASPP)
-include(ImportLapack)
 
 # VecchiaGP Linear Algebra Backends
 # -------------------------------

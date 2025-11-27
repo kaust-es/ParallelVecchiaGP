@@ -1580,4 +1580,3 @@ std::vector<int> DistributedClusteringStrategy<T>::CountClusterSizes(
     
     return sizes;
 }
-

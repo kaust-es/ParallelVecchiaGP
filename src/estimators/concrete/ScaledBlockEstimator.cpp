@@ -926,12 +926,12 @@ T ScaledBlockEstimator<T>::Estimate(Configurations &aConfigurations,
             }
         }
         
-        // Create CUDA stream
-        checkCudaError(cudaStreamCreate(&stream));
-        
         // Create MAGMA queue
         magma_queue_create(gpu_id, &queue);
         
+        // Get the CUDA stream from the MAGMA queue (they share the same stream)
+        stream = magma_queue_get_cuda_stream(queue);
+
         // Copy data to GPU
         gpuData = copyDataToGPU(aConfigurations, blockInfos, queue);
         
