@@ -206,6 +206,7 @@ T VecchiaGP<T>::VecchiaDataEstimation(Configurations &aConfigurations, std::uniq
     
     // Create nlopt
     double opt_f;
+    printf("parameters_number: %d\n", parameters_number);
     opt optimizing_function(nlopt::LN_SBPLX, parameters_number);
     
     // Initialize problem's bound.

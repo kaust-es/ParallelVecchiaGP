@@ -26,7 +26,7 @@ option(USE_R "Enable the use of R and Rcpp in the project" OFF)
 # Cmake Module Paths
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
 
-# Project Name and Version (must come early for language enabling)
+# Project Name and Version
 project(VecchiaGP VERSION 1.0.0 LANGUAGES C CXX)
 
 # Show the current version of CMake.
@@ -36,7 +36,18 @@ message("")
 message("---------------------------------------- CUDA")
 # Enable CUDA and include CudaToolchain
 add_definitions(-DUSE_CUDA=TRUE)
-set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)
+# Find CUDA compiler using environment variables and system paths
+if(NOT CMAKE_CUDA_COMPILER)
+    if(DEFINED ENV{CUDA_HOME})
+        find_program(CMAKE_CUDA_COMPILER nvcc HINTS $ENV{CUDA_HOME}/bin NO_DEFAULT_PATH)
+    endif()
+    if(NOT CMAKE_CUDA_COMPILER AND DEFINED ENV{CUDA_PATH})
+        find_program(CMAKE_CUDA_COMPILER nvcc HINTS $ENV{CUDA_PATH}/bin NO_DEFAULT_PATH)
+    endif()
+    if(NOT CMAKE_CUDA_COMPILER)
+        find_program(CMAKE_CUDA_COMPILER nvcc)
+    endif()
+endif()
 enable_language(CUDA)
 include(toolchains/CudaToolchain)
 # Get the current path of the project.
