@@ -932,8 +932,19 @@ T ScaledBlockEstimator<T>::Estimate(Configurations &aConfigurations,
         // Get the CUDA stream from the MAGMA queue (they share the same stream)
         stream = magma_queue_get_cuda_stream(queue);
 
+        // Time GPU data copy
+        auto start_gpu_copy = std::chrono::high_resolution_clock::now();
+        
         // Copy data to GPU
         gpuData = copyDataToGPU(aConfigurations, blockInfos, queue);
+        
+        // Synchronize to ensure copy is complete before timing
+        cudaDeviceSynchronize();
+        auto end_gpu_copy = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> duration_gpu_copy = end_gpu_copy - start_gpu_copy;
+        
+        // Store gpu_copy timing
+        aData->GetTimingData().gpu_copy = duration_gpu_copy.count();
         
         // Calculate and print total GFLOPS
         double total_gflops = gflopsTotal(gpuData, aConfigurations);
@@ -944,7 +955,7 @@ T ScaledBlockEstimator<T>::Estimate(Configurations &aConfigurations,
         gpu_initialized = true;
         
         if (rank == 0) {
-            std::cout << "GPU initialization complete" << std::endl;
+            std::cout << "GPU initialization complete (copy time: " << duration_gpu_copy.count() << "s)" << std::endl;
         }
     }
     
@@ -977,10 +988,11 @@ T ScaledBlockEstimator<T>::Estimate(Configurations &aConfigurations,
     
     call_count++;
     
-    // Store GPU timing data (accumulated over all optimization steps)
+    // Store ONLY the last iteration's GPU timing (don't accumulate)
+    // This matches the old code behavior where timing represents a single evaluation
     double gpu_time_seconds = ms / 1000.0;
-    aData->GetTimingData().gpu_total += gpu_time_seconds;
-    aData->GetTimingData().computation += gpu_time_seconds; // Approximate as computation time
+    aData->GetTimingData().gpu_total = gpu_time_seconds;
+    aData->GetTimingData().computation = gpu_time_seconds;
     
     // Print optimization info
     if (rank == 0) {
@@ -990,7 +1002,7 @@ T ScaledBlockEstimator<T>::Estimate(Configurations &aConfigurations,
         for (const auto& val : theta) {
             std::cout << std::fixed << std::setprecision(6) << val << " ";
         }
-        std::cout << std::endl;
+        std::cout << " (GPU: " << gpu_time_seconds << "s)" << std::endl;
     }
     
     // Return log-likelihood (positive value for NLOPT maximization)
