@@ -1331,6 +1331,15 @@ ClusteringResult<T> DistributedClusteringStrategy<T>::ComputeClusters(
         result.blockInfos_test = localBlocks_test;  
     }
 
+    // Store timing data in ClusteringResult
+    result.timingData.RAC_partitioning = max_RAC_partitioning;
+    result.timingData.centers_of_gravity_calculation = max_duration_centers_of_gravity;
+    result.timingData.send_centers_of_gravity = max_duration_send_centers_of_gravity;
+    result.timingData.reorder_centers = max_duration_reorder_centers;
+    result.timingData.create_block_info = max_duration_create_block_info;
+    result.timingData.block_sending = max_duration_block_sending;
+    result.timingData.nn_searching = max_duration_nn_searching;
+
     if (rank == 0) {
         std::cout << "Stored " << localBlocks.size() << " blocks in ClusteringResult" << std::endl;
         std::cout << "Stored " << localBlocks_test.size() << " test blocks in ClusteringResult" << std::endl;

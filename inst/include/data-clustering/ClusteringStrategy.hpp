@@ -22,6 +22,7 @@
 #include <data-units/Point.hpp>
 #include <data-units/BlockInfo.hpp>
 #include <configurations/Configurations.hpp>
+#include <utilities/TimingData.hpp>
 
 namespace vecchia::clustering {
 
@@ -55,6 +56,9 @@ namespace vecchia::clustering {
         
         /// Block information for test/prediction data (optional)
         std::vector<dataunits::BlockInfo> blockInfos_test;
+        
+        /// Timing information from clustering operations
+        utilities::TimingData timingData;
         
         ClusteringResult() : numClusters(0), isPointWise(false) {}
     };
