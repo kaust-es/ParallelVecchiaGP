@@ -21,6 +21,7 @@
 
 #include <data-units/Locations.hpp>
 #include <data-units/BlockInfo.hpp>
+#include <utilities/TimingData.hpp>
 
 // Forward declaration to avoid circular dependency
 namespace vecchia { namespace clustering {
@@ -351,6 +352,18 @@ public:
     void SetLogDetResults(double* ptr) { mpHostLogDetResults = ptr; }
     void SetNorm2Results(double* ptr) { mpHostNorm2Results = ptr; }
     
+    /**
+     * @brief Get the timing data
+     * @return Reference to the timing data structure
+     */
+    vecchia::utilities::TimingData& GetTimingData() { return mTimingData; }
+    
+    /**
+     * @brief Set the timing data
+     * @param[in] aTimingData The timing data to store
+     */
+    void SetTimingData(const vecchia::utilities::TimingData& aTimingData) { mTimingData = aTimingData; }
+    
     // Conditioning-related setters
     void SetHostCovarianceConditioningArray(T** ptr) { mpHostCovarianceConditioningArray = ptr; }
     void SetDeviceCovarianceConditioningArray(T** ptr) { mpDeviceCovarianceConditioningArray = ptr; }
@@ -547,6 +560,9 @@ private:
     
     //// Scaled Block Vecchia data
     std::vector<vecchia::dataunits::BlockInfo> mBlockInfos;
+    
+    //// Timing data for logging
+    vecchia::utilities::TimingData mTimingData;
     
     //// Scaled Block Vecchia test/prediction data
     std::vector<vecchia::dataunits::BlockInfo> mBlockInfos_test;

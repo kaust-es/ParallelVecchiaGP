@@ -15,6 +15,7 @@
 
 #include <api/VecchiaGP.hpp>
 #include <utilities/Logger.hpp>
+#include <utilities/TimingData.hpp>
 #include <kernels/Kernel.hpp>
 #include <data-generators/DataGenerator.hpp>
 #include <data-clustering/ClusteringFactory.hpp>
@@ -31,10 +32,15 @@
 #include <helpers/BatchPreparationUtility.hpp>
 #include <helpers/CSVUtils.hpp>
 #include <data-clustering/concrete/LocalClusteringStrategy.hpp>
+#include <hardware/VecchiaHardware.hpp>
 #include <omp.h>
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <iomanip>
+#include <sstream>
 #include <utilities/ErrorHandler.hpp>
 
 using namespace std;
@@ -98,6 +104,9 @@ void VecchiaGP<T>::VecchiaLoadData(Configurations &aConfigurations, std::unique_
         // Process clustering results and prepare batches using utility class
         BatchPreparationUtility<T>::PrepareBatchesFromClustering(
             aConfigurations, *aData, clusteringResult);
+        
+        // Store timing data from clustering
+        aData->SetTimingData(clusteringResult.timingData);
 
     }
     else if(aConfigurations.GetVecchiaType() == common::PARALLEL_SCALED_BLOCK_VECCHIA_GP){
@@ -114,6 +123,9 @@ void VecchiaGP<T>::VecchiaLoadData(Configurations &aConfigurations, std::unique_
         // Store BlockInfo in VecchiaGBData for use by ScaledBlockEstimator
         aData->SetBlockInfos(clusteringResult.blockInfos);
         aData->SetBlockInfos_test(clusteringResult.blockInfos_test);
+        
+        // Store timing data from clustering
+        aData->SetTimingData(clusteringResult.timingData);
     }
     
     // For Block Vecchia prediction: Load and cluster test locations if provided
@@ -247,6 +259,99 @@ T VecchiaGP<T>::VecchiaDataEstimation(Configurations &aConfigurations, std::uniq
     LOGGER_PRECISION(whole_time)
     LOGGER_PRECISION(" seconds")
     LOGGER("")
+    
+    // Write log files with real timing data (legacy code format)
+    int rank = 0;
+#ifdef USE_MPI
+    rank = VecchiaHardware::GetMPIRank();
+#endif
+    
+    if (rank == 0) {
+        // Create log directory
+        std::filesystem::create_directories("./log");
+        
+        // Get configuration parameters
+        int numPointsTotal = aConfigurations.GetProblemSize();
+        int numBlocksTotal = aConfigurations.GetBlockSize();
+        int m = aConfigurations.GetConditioningSize();
+        int seed = aConfigurations.GetSeed();
+        int isScaled = (aConfigurations.GetVecchiaType() == common::PARALLEL_SCALED_BLOCK_VECCHIA_GP) ? 1 : 0;
+        int run = 1; // Can be parameterized if needed
+        
+        // Get timing data from VecchiaGBData
+        auto& timingData = aData->GetTimingData();
+        timingData.total = whole_time;
+        
+        // Build filenames
+        std::ostringstream logFilename, thetaFilename;
+        logFilename << "./log/logFile_numPointsTotal" << numPointsTotal 
+                   << "_numBlocksTotal" << numBlocksTotal 
+                   << "_m" << m 
+                   << "_seed" << seed 
+                   << "_isScaled" << isScaled 
+                   << "_estimation_run" << run << ".csv";
+        
+        thetaFilename << "./log/theta_numPointsTotal" << numPointsTotal 
+                     << "_numBlocksTotal" << numBlocksTotal 
+                     << "_m" << m 
+                     << "_seed" << seed 
+                     << "_isScaled" << isScaled 
+                     << "_estimation_run" << run << ".csv";
+        
+        // Write log file with REAL timing information
+        std::ofstream logFile(logFilename.str());
+        if (logFile.is_open()) {
+            // Header (matching legacy format)
+            logFile << "RAC_partitioning,centers_of_gravity_calculation,send_centers_of_gravity,"
+                   << "reorder_centers,create_block_info,block_sending,nn_searching,"
+                   << "gpu_copy,computation,gpu_total,cleanup_gpu,total,total_gflops,"
+                   << "numPointsPerProcess,numPointsTotal,numBlocksPerProcess,numBlocksTotal,"
+                   << "m,seed,mspe,rmspe,ci_coverage,optimized_log_likelihood,iters\n";
+            
+            // Data row with REAL timing data
+            logFile << std::fixed << std::setprecision(9);
+            logFile << timingData.RAC_partitioning << ",";
+            logFile << timingData.centers_of_gravity_calculation << ",";
+            logFile << timingData.send_centers_of_gravity << ",";
+            logFile << timingData.reorder_centers << ",";
+            logFile << timingData.create_block_info << ",";
+            logFile << timingData.block_sending << ",";
+            logFile << timingData.nn_searching << ",";
+            logFile << timingData.gpu_copy << ",";
+            logFile << timingData.computation << ",";
+            logFile << timingData.gpu_total << ",";
+            logFile << timingData.cleanup_gpu << ",";
+            logFile << timingData.total << ",";
+            logFile << timingData.total_gflops << ",";
+            logFile << numPointsTotal << ","; // numPointsPerProcess
+            logFile << numPointsTotal << ","; // numPointsTotal
+            logFile << numBlocksTotal << ","; // numBlocksPerProcess
+            logFile << numBlocksTotal << ","; // numBlocksTotal
+            logFile << m << ","; // m
+            logFile << seed << ","; // seed
+            logFile << "-1,"; // mspe (not computed during estimation)
+            logFile << "-1,"; // rmspe (not computed during estimation)
+            logFile << "-1,"; // ci_coverage (not computed during estimation)
+            logFile << std::setprecision(10) << opt_f << ","; // optimized_log_likelihood
+            logFile << max_number_of_iterations << "\n"; // iters
+            
+            logFile.close();
+            LOGGER("Log file written to: " << logFilename.str())
+        }
+        
+        // Write theta file (optimized parameters)
+        std::ofstream thetaFile(thetaFilename.str());
+        if (thetaFile.is_open()) {
+            thetaFile << std::fixed << std::setprecision(6);
+            for (size_t i = 0; i < theta.size(); i++) {
+                thetaFile << theta[i] << ",";
+            }
+            thetaFile << "\n";
+            thetaFile.close();
+            LOGGER("Theta file written to: " << thetaFilename.str())
+        }
+    }
+    
     delete pKernel;
     delete modeling_data;
     return opt_f;
