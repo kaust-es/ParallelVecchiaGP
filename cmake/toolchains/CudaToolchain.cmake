@@ -16,6 +16,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Set the CUDA architectures to be targeted
 set(CUDA_ARCHITECTURES "35;50;72")
 
+# Set CUDA optimization flags (matching old code performance)
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -O3 --use_fast_math -Xcompiler -march=native")
+set(CMAKE_CUDA_FLAGS_RELEASE "${CMAKE_CUDA_FLAGS_RELEASE} -O3 --use_fast_math")
+set(CMAKE_CUDA_FLAGS_DEBUG "${CMAKE_CUDA_FLAGS_DEBUG} -g -G")
+
 # Find the CUDA toolkit
 find_package(CUDAToolkit REQUIRED)
 set(ENV{LDFLAGS} "-L$ENV{CUDA_DIR}/lib64")

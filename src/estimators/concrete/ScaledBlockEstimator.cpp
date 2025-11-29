@@ -1002,7 +1002,7 @@ T ScaledBlockEstimator<T>::Estimate(Configurations &aConfigurations,
         for (const auto& val : theta) {
             std::cout << std::fixed << std::setprecision(6) << val << " ";
         }
-        std::cout << " (GPU: " << gpu_time_seconds << "s)" << std::endl;
+        std::cout << std::endl;
     }
     
     // Return log-likelihood (positive value for NLOPT maximization)
