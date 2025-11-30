@@ -991,8 +991,8 @@ T ScaledBlockEstimator<T>::Estimate(Configurations &aConfigurations,
     // Store ONLY the last iteration's GPU timing (don't accumulate)
     // This matches the old code behavior where timing represents a single evaluation
     double gpu_time_seconds = ms / 1000.0;
-    aData->GetTimingData().gpu_total = gpu_time_seconds;
-    aData->GetTimingData().computation = gpu_time_seconds;
+    aData->GetTimingData().gpu_total += gpu_time_seconds;
+    aData->GetTimingData().computation += gpu_time_seconds;
     
     // Print optimization info
     if (rank == 0) {
