@@ -57,6 +57,11 @@ using namespace vecchia::estimators;
 using namespace vecchia::predictors;
 using namespace vecchia::helpers;
 
+// Static variable to store start time for total timing (matches reference repository behavior)
+// This allows timing to start in VecchiaLoadData and end in VecchiaDataEstimation
+static struct timespec g_start_total = {0, 0};
+static bool g_timing_started = false;
+
 template<typename T>
 void VecchiaGP<T>::VecchiaLoadData(Configurations &aConfigurations, std::unique_ptr<VecchiaGBData<T>> &aData) {
     
@@ -64,6 +69,7 @@ void VecchiaGP<T>::VecchiaLoadData(Configurations &aConfigurations, std::unique_
     std::srand(seed);
     aConfigurations.PrintSummary();
     LOGGER("** VecchiaGP data generation/loading **")
+    
     // Register and create a kernel object
     kernels::Kernel<T> *pKernel = plugins::PluginRegistry<kernels::Kernel<T>>::Create(aConfigurations.GetKernelName(),
                                                                                       aConfigurations.GetTimeSlot());
@@ -110,6 +116,13 @@ void VecchiaGP<T>::VecchiaLoadData(Configurations &aConfigurations, std::unique_
 
     }
     else if(aConfigurations.GetVecchiaType() == common::PARALLEL_SCALED_BLOCK_VECCHIA_GP){
+        // Start total timing before partitioning and NN search (matches reference repository)
+        // This ensures total includes all preprocessing, GPU copy, computation, and cleanup
+        if (!g_timing_started) {
+            clock_gettime(CLOCK_MONOTONIC, &g_start_total);
+            g_timing_started = true;
+        }
+        
         // Create clustering strategy using factory
         auto clusteringStrategy = ClusteringFactory::Create<T>(
             aConfigurations.GetVecchiaType(), 
@@ -212,9 +225,8 @@ T VecchiaGP<T>::VecchiaDataEstimation(Configurations &aConfigurations, std::uniq
     // Setting struct of data to pass to the modeling.
     auto modeling_data = new mModelingData(aData, aConfigurations, *apMeasurementsMatrix, *pKernel);
     
-    struct timespec start_whole, end_whole;
-    double whole_time = 0;
-    clock_gettime(CLOCK_MONOTONIC, &start_whole);
+    // Note: start_whole is no longer used - we use g_start_total from VecchiaLoadData
+    // This matches the reference repository where timing starts before partitioning
     
     // Create nlopt
     double opt_f;
@@ -253,10 +265,13 @@ T VecchiaGP<T>::VecchiaDataEstimation(Configurations &aConfigurations, std::uniq
     LOGGER_PRECISION(opt_f)
     LOGGER("")
 
-    clock_gettime(CLOCK_MONOTONIC, &end_whole);
-    whole_time = end_whole.tv_sec - start_whole.tv_sec + (end_whole.tv_nsec - start_whole.tv_nsec) / 1e9;
-    LOGGER("Total Optimization Time = ", true);
-    LOGGER_PRECISION(whole_time)
+    // End total timing after optimization completes (matches reference repository)
+    struct timespec end_total;
+    clock_gettime(CLOCK_MONOTONIC, &end_total);
+    double total_time = end_total.tv_sec - g_start_total.tv_sec + (end_total.tv_nsec - g_start_total.tv_nsec) / 1e9;
+    
+    LOGGER("Total Time = ", true);
+    LOGGER_PRECISION(total_time)
     LOGGER_PRECISION(" seconds")
     LOGGER("")
     
@@ -280,7 +295,18 @@ T VecchiaGP<T>::VecchiaDataEstimation(Configurations &aConfigurations, std::uniq
         
         // Get timing data from VecchiaGBData
         auto& timingData = aData->GetTimingData();
-        timingData.total = whole_time;
+        
+        // Set total time from wall-clock measurement (matches reference repository)
+        // This includes everything from g_start_total (before partitioning) to end_total (after optimization)
+        // Only set for scaled block vecchia (where timing was started)
+        if (aConfigurations.GetVecchiaType() == common::PARALLEL_SCALED_BLOCK_VECCHIA_GP) {
+            timingData.total = total_time;
+            // Reset timing flag for next run
+            g_timing_started = false;
+        } else {
+            // For other vecchia types, use the optimization time
+            timingData.total = total_time;
+        }
         
         // Build filenames
         std::ostringstream logFilename, thetaFilename;
