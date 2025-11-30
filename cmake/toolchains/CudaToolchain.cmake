@@ -34,12 +34,15 @@ if(DEFINED ENV{CUDA_HOME})
     message(STATUS "Using CUDA_HOME: ${CUDA_ROOT}")
     # Set CUDA paths to prefer system installation
     set(CMAKE_CUDA_COMPILER "${CUDA_ROOT}/bin/nvcc")
-    # Add system CUDA library path
+    # Add system CUDA library path FIRST (so it's searched before Spack paths)
     link_directories("${CUDA_ROOT}/lib64")
     # Also check for lib (non-64-bit systems)
     if(EXISTS "${CUDA_ROOT}/lib")
         link_directories("${CUDA_ROOT}/lib")
     endif()
+    # Set CUDAToolkit_ROOT to force CMake to use system CUDA
+    set(CUDAToolkit_ROOT "${CUDA_ROOT}")
+    set(ENV{CUDAToolkit_ROOT} "${CUDA_ROOT}")
 endif()
 
 # Find the CUDA toolkit
@@ -51,13 +54,15 @@ if(CMAKE_CXX_COMPILER)
     set(CMAKE_CUDA_HOST_COMPILER ${CMAKE_CXX_COMPILER})
 endif()
 
-# Add CUDA library path to linker flags if CUDA_HOME is set
-if(DEFINED ENV{CUDA_HOME})
-    set(ENV{LDFLAGS} "-L$ENV{CUDA_HOME}/lib64")
-    # Also add to CMake link directories
-    link_directories("$ENV{CUDA_HOME}/lib64")
-endif()
-
 # Add CUDA libraries to the global LIBS variable
-# Use system libraries when available (matches faster Makefile: -lcudart -lcublas -lcusparse)
-list(APPEND LIBS CUDA::cudart CUDA::cublas CUDA::cusparse)
+# When CUDA_HOME is set, link directly with library names (matches Makefile: -lcudart -lcublas -lcusparse)
+# This ensures the linker uses the system libraries from the -L paths we set above
+if(DEFINED ENV{CUDA_HOME})
+    # Link directly with library names, matching Makefile approach
+    # The -L paths set above will ensure system libraries are found
+    list(APPEND LIBS cudart cublas cusparse)
+    message(STATUS "Linking CUDA libraries directly: cudart cublas cusparse (using system libraries from ${CUDA_ROOT})")
+else()
+    # Use CMake imported targets when CUDA_HOME is not set
+    list(APPEND LIBS CUDA::cudart CUDA::cublas CUDA::cusparse)
+endif()

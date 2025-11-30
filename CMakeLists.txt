@@ -36,6 +36,15 @@ message("")
 message("---------------------------------------- CUDA")
 # Enable CUDA and include CudaToolchain
 add_definitions(-DUSE_CUDA=TRUE)
+
+# Prefer system CUDA when CUDA_HOME is set (matches faster Makefile approach)
+# Set CUDAToolkit_ROOT before finding CUDA to force use of system installation
+if(DEFINED ENV{CUDA_HOME})
+    set(CUDAToolkit_ROOT $ENV{CUDA_HOME} CACHE PATH "CUDA Toolkit root directory")
+    set(ENV{CUDAToolkit_ROOT} $ENV{CUDA_HOME})
+    message(STATUS "CUDA_HOME set to: $ENV{CUDA_HOME}, forcing CUDAToolkit_ROOT to use system CUDA")
+endif()
+
 # Find CUDA compiler using environment variables and system paths
 if(NOT CMAKE_CUDA_COMPILER)
     if(DEFINED ENV{CUDA_HOME})
