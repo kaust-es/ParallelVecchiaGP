@@ -27,6 +27,21 @@ set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -O3 --compiler-options -uns --extended
 set(CMAKE_CUDA_FLAGS_RELEASE "${CMAKE_CUDA_FLAGS_RELEASE} -O3 --compiler-options -uns --extended-lambda -allow-unsupported-compiler")
 set(CMAKE_CUDA_FLAGS_DEBUG "${CMAKE_CUDA_FLAGS_DEBUG} -g -G")
 
+# Prefer system CUDA libraries when CUDA_HOME is set (matches faster Makefile approach)
+# This ensures we use system CUDA libraries instead of Spack-installed ones
+if(DEFINED ENV{CUDA_HOME})
+    set(CUDA_ROOT $ENV{CUDA_HOME})
+    message(STATUS "Using CUDA_HOME: ${CUDA_ROOT}")
+    # Set CUDA paths to prefer system installation
+    set(CMAKE_CUDA_COMPILER "${CUDA_ROOT}/bin/nvcc")
+    # Add system CUDA library path
+    link_directories("${CUDA_ROOT}/lib64")
+    # Also check for lib (non-64-bit systems)
+    if(EXISTS "${CUDA_ROOT}/lib")
+        link_directories("${CUDA_ROOT}/lib")
+    endif()
+endif()
+
 # Find the CUDA toolkit
 find_package(CUDAToolkit REQUIRED)
 
@@ -36,7 +51,13 @@ if(CMAKE_CXX_COMPILER)
     set(CMAKE_CUDA_HOST_COMPILER ${CMAKE_CXX_COMPILER})
 endif()
 
-set(ENV{LDFLAGS} "-L$ENV{CUDA_DIR}/lib64")
+# Add CUDA library path to linker flags if CUDA_HOME is set
+if(DEFINED ENV{CUDA_HOME})
+    set(ENV{LDFLAGS} "-L$ENV{CUDA_HOME}/lib64")
+    # Also add to CMake link directories
+    link_directories("$ENV{CUDA_HOME}/lib64")
+endif()
 
 # Add CUDA libraries to the global LIBS variable
+# Use system libraries when available (matches faster Makefile: -lcudart -lcublas -lcusparse)
 list(APPEND LIBS CUDA::cudart CUDA::cublas CUDA::cusparse)
