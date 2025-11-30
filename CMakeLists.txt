@@ -76,6 +76,14 @@ message("---------------------------------------- MPI")
 add_definitions(-DUSE_MPI=TRUE)
 message(STATUS "Trying to find MPI")
 find_package(MPI REQUIRED)
+
+# Use MPI compiler wrapper (mpic++) for better MPI optimization
+# This matches the faster repository which uses mpic++ directly
+if(MPI_CXX_COMPILER)
+    set(CMAKE_CXX_COMPILER ${MPI_CXX_COMPILER})
+    message(STATUS "Using MPI C++ compiler: ${MPI_CXX_COMPILER}")
+endif()
+
 include_directories(${MPI_INCLUDE_PATH})
 list(APPEND LIBS ${MPI_LIBRARIES})
 
@@ -131,10 +139,9 @@ add_subdirectory(src)
 # Creates a new INTERFACE library target named ${PROJECT_NAME}_INTERFACE.
 # The INTERFACE keyword specifies that this library will not be built, but instead will only be used for its properties.
 add_library(${PROJECT_NAME}_INTERFACE INTERFACE)
+# Link the interface library (removed --whole-archive for better performance)
+# The faster repository doesn't use --whole-archive, which reduces binary size and load time
 target_link_libraries(${PROJECT_NAME}_INTERFACE INTERFACE ${PROJECT_NAME})
-
-# Add linker options to the target
-target_link_options(${PROJECT_NAME}_INTERFACE INTERFACE "SHELL:-Wl,--whole-archive $<TARGET_FILE:${PROJECT_NAME}> -Wl,--no-whole-archive")
 
 # Add tests if enabled
 if (${BUILD_TESTS})

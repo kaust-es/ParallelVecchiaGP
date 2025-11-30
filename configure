@@ -62,7 +62,10 @@ BUILDING_EXAMPLES="OFF"
 VERBOSE="OFF"
 USE_R="OFF"
 SHOW_WARNINGS="OFF"
-COMPILE_FLAGS="-Wl,--no-as-needed -w -fpic -O3 -fopenmp -march=native"
+# Match faster repository flags: -O2 base, then add -O3 for release
+# Remove -Wl,--no-as-needed and -fpic (not in faster repo)
+# Keep -march=native for architecture-specific optimizations
+COMPILE_FLAGS="-Wall -O2 -fopenmp -std=c++17 -march=native"
 DEVELOPER_WARNINGS="-Wno-dev"
 
 # Parse command line options
@@ -133,7 +136,8 @@ if [ "$SHOW_WARNINGS" = "ON" ]; then
   COMPILE_FLAGS="$COMPILE_FLAGS -W"
   DEVELOPER_WARNINGS=""
 elif [ "$SHOW_WARNINGS" = "OFF" ]; then
-  COMPILE_FLAGS="$COMPILE_FLAGS -w"
+  # Match faster repository: keep -Wall but suppress specific warnings
+  COMPILE_FLAGS="$COMPILE_FLAGS -Wsign-compare -Wno-sign-compare -Wunknown-pragmas -Wunused-variable"
 fi
 
 if [ -z "$USE_R" ]; then
@@ -173,7 +177,7 @@ fi
   -DBUILD_EXAMPLES="${BUILDING_EXAMPLES}" \
   -DCMAKE_VERBOSE_MAKEFILE:BOOL=${VERBOSE} \
   -DUSE_R="${USE_R}" \
-  -DBUILD_SHARED_LIBS=OFF \
+  -DBUILD_SHARED_LIBS=ON \
   -H"${ABSOLUTE_PATH}" \
   -B"${ABSOLUTE_PATH}/bin" \
   -G "Unix Makefiles" \
