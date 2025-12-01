@@ -1,0 +1,2 @@
+RAC_partitioning,centers_of_gravity_calculation,send_centers_of_gravity,reorder_centers,create_block_info,block_sending,nn_searching,gpu_copy,computation,gpu_total,cleanup_gpu,total,total_gflops,numPointsPerProcess,numPointsTotal,numBlocksPerProcess,numBlocksTotal,m,seed,mspe,rmspe,ci_coverage,optimized_log_likelihood,iters
+0.061682064,0.000647105,0.000030858,0.000007000,0.001948395,0.038242814,2.252188418,0.082922236,45.593171021,45.593171021,0.000000000,46.189111132,14.837252016,100000,100000,1000,1000,200,42,-1,-1,-1,14434.6973187549,100
