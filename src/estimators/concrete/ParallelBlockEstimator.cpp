@@ -351,14 +351,11 @@ T ParallelBlockEstimator<T>::Estimate(configurations::Configurations &aConfigura
     // Get the queue from the hardware instance (static accessor)
     magma_queue_t queue = VecchiaHardware::GetQueue();
     
-    double total_start = magma_sync_wtime(queue);
-    
     //-----------------------------------------------------------//
     //------------------Covariance matrix generation...-------------------//
     //-----------------------------------------------------------//
 
     // Generate covariance matrix using LEGACY core_dcmg (for performance)
-    double cov_gen_start = magma_sync_wtime(queue);
     int z_flag = aConfigurations.GetTimeSlot() ? 1 : 0;
     
     // Parallel execution with OpenMP like legacy code
@@ -388,12 +385,8 @@ T ParallelBlockEstimator<T>::Estimate(configurations::Configurations &aConfigura
         // Free the location struct like legacy code (line 179 in llh_Xvecchia_batch.h)
         free(loc_batch);
     }
-    double cov_gen_time = magma_sync_wtime(queue) - cov_gen_start;
-    double kernel_create_time = 0.0; // No kernel creation needed with legacy code
     
-    double conditioning_cov_time = 0.0;
     if(aConfigurations.GetConditioningSize() > 0){
-        double conditioning_cov_start = magma_sync_wtime(queue);
         int cs = aConfigurations.GetConditioningSize();
         
 #pragma omp parallel for
@@ -441,22 +434,17 @@ T ParallelBlockEstimator<T>::Estimate(configurations::Configurations &aConfigura
             free(loc_batch_con);
             free(loc_batch);
         }
-        conditioning_cov_time = magma_sync_wtime(queue) - conditioning_cov_start;
     }
     
     //-----------------------------------------------------------//
     //------------------Memory set/get/...-----------------------//
     //-----------------------------------------------------------//
-    double mem_copy_start = magma_sync_wtime(queue);
     double *host_Cov_tmp, *device_Cov_tmp;
     
-    double obs_copy_start = magma_sync_wtime(queue);
     // copy the observations, which is overwritten for each iteration
     magma_dcopy(aData->GetHostLDDAConditioning()[0] * aData->GetBatchCount(), aData->GetDeviceConditioningObs(), 1, aData->GetDeviceObservationsConditioningCopy(), 1, queue);
     magma_dcopy(aData->GetTotalSizeDeviceObservations(), aData->GetDeviceObservations(), 1, aData->GetDeviceObservationsCopy(), 1, queue);
-    double obs_copy_time = magma_sync_wtime(queue) - obs_copy_start;
     
-    double cov_transfer_start = magma_sync_wtime(queue);
     host_Cov_tmp = aData->GetHostCovariance();
     device_Cov_tmp = aData->GetDeviceCovariance();
     for (int i = 0; i < aData->GetBatchCount(); i++)
@@ -469,25 +457,10 @@ T ParallelBlockEstimator<T>::Estimate(configurations::Configurations &aConfigura
         device_Cov_tmp += aData->GetBatchNum()[i] * aData->GetHostLDDA()[i];
     }
     magma_setvector(aData->GetBatchCount(), sizeof(int), aData->GetHostInfo(), 1, aData->GetDeviceInfo(), 1, queue);
-    double cov_transfer_time = magma_sync_wtime(queue) - cov_transfer_start;
-    
-    double mem_copy_time = magma_sync_wtime(queue) - mem_copy_start;
     
     // Copy conditioning covariance and cross-covariance to device if conditioning is enabled
-    double conditioning_ops_time = 0.0;
-    double conditioning_transfer_time = 0.0;
-    double conditioning_potrf_time = 0.0;
-    double conditioning_trsm1_time = 0.0;
-    double conditioning_trsm2_time = 0.0;
-    double conditioning_gemm1_time = 0.0;
-    double conditioning_gemm2_time = 0.0;
-    double conditioning_geadd_time = 0.0;
-    
     if (aConfigurations.GetConditioningSize() > 0)
     {
-        double conditioning_ops_start = magma_sync_wtime(queue);
-        
-        double conditioning_transfer_start = magma_sync_wtime(queue);
         int cs = aConfigurations.GetConditioningSize();
         double* host_conditioning_cov_tmp = aData->GetHostConditioningCov();
         double* device_conditioning_cov_tmp = aData->GetDeviceConditioningCov();
@@ -512,40 +485,30 @@ T ParallelBlockEstimator<T>::Estimate(configurations::Configurations &aConfigura
             device_cross_cov_tmp += aData->GetHostLDDAConditioning()[i] * aData->GetBatchNum()[i];
             
         }
-        conditioning_transfer_time = magma_sync_wtime(queue) - conditioning_transfer_start;
-
-
 
         //-----------------------------------------------------//
         //------------------Conditioning-----------------------//
         //-----------------------------------------------------//
-        double conditioning_potrf_start = magma_sync_wtime(queue);
-        int info = magma_dpotrf_vbatched(
+        magma_dpotrf_vbatched(
             MagmaLower, aData->GetDeviceLDAConditioning(),
             aData->GetDeviceCovarianceConditioningArray(), aData->GetDeviceLDDAConditioning(),
             aData->GetDeviceInfo(), aData->GetBatchCount(),
             queue);
-        conditioning_potrf_time = magma_sync_wtime(queue) - conditioning_potrf_start;
 
-        double conditioning_trsm1_start = magma_sync_wtime(queue);
         magmablas_dtrsm_vbatched(
             MagmaLeft, MagmaLower, MagmaNoTrans, MagmaNonUnit,
             aData->GetDeviceLDAConditioning(), aData->GetDeviceLDA(), 1.,
             aData->GetDeviceCovarianceConditioningArray(), aData->GetDeviceLDDAConditioning(),
             aData->GetDeviceCovarianceCrossArray(), aData->GetDeviceLDDAConditioning(),
             aData->GetBatchCount(), queue);
-        conditioning_trsm1_time = magma_sync_wtime(queue) - conditioning_trsm1_start;
 
-        double conditioning_trsm2_start = magma_sync_wtime(queue);
         magmablas_dtrsm_vbatched(
             MagmaLeft, MagmaLower, MagmaNoTrans, MagmaNonUnit,
             aData->GetDeviceLDAConditioning(), aData->GetDeviceConst1(), 1.,
             aData->GetDeviceCovarianceConditioningArray(), aData->GetDeviceLDDAConditioning(),
             aData->GetDeviceObservationsConditioningArrayCopy(), aData->GetDeviceLDDAConditioning(),
             aData->GetBatchCount(), queue);
-        conditioning_trsm2_time = magma_sync_wtime(queue) - conditioning_trsm2_start;
 
-        double conditioning_gemm1_start = magma_sync_wtime(queue);
         magmablas_dgemm_vbatched(MagmaTrans, MagmaNoTrans,
             aData->GetDeviceLDA(), aData->GetDeviceLDA(), aData->GetDeviceLDAConditioning(),
             1,
@@ -555,11 +518,9 @@ T ParallelBlockEstimator<T>::Estimate(configurations::Configurations &aConfigura
             aData->GetDeviceCovarianceOffsetArray(), aData->GetDeviceLDDA(),
             aData->GetBatchCount(),
             queue);
-        conditioning_gemm1_time = magma_sync_wtime(queue) - conditioning_gemm1_start;
 
         // \Sigma_offset^T %*% z_offset
         // GEMV -> GEMM (GEMV is supposed to be better, but there is unknown issues with the API)
-        double conditioning_gemm2_start = magma_sync_wtime(queue);
         magmablas_dgemm_vbatched(MagmaTrans, MagmaNoTrans,
             aData->GetDeviceLDA(), aData->GetDeviceConst1(), aData->GetDeviceLDAConditioning(),
             1,
@@ -569,9 +530,7 @@ T ParallelBlockEstimator<T>::Estimate(configurations::Configurations &aConfigura
             aData->GetDeviceMuOffsetArray(), aData->GetDeviceLDDA(),
             aData->GetBatchCount(),
             queue);
-        conditioning_gemm2_time = magma_sync_wtime(queue) - conditioning_gemm2_start;
 
-        double conditioning_geadd_start = magma_sync_wtime(queue);
         for (size_t i = 1; i < aData->GetBatchCount(); ++i)
         {
             magmablas_dgeadd(aData->GetHostLDA()[i], aData->GetHostLDA()[i],
@@ -586,9 +545,6 @@ T ParallelBlockEstimator<T>::Estimate(configurations::Configurations &aConfigura
                 aData->GetHostObservationsArrayCopy()[i], aData->GetHostLDDA()[i],
                 queue);
         }
-        conditioning_geadd_time = magma_sync_wtime(queue) - conditioning_geadd_start;
-        
-        conditioning_ops_time = magma_sync_wtime(queue) - conditioning_ops_start;
     }
 
     //-----------------------------------------------------//
@@ -597,36 +553,26 @@ T ParallelBlockEstimator<T>::Estimate(configurations::Configurations &aConfigura
     // intermidiate results
     double *logdet_result_h = aData->GetLogDetResults();
     double *norm2_result_h = aData->GetNorm2Results();
-    int info = 0;        // debug for potrf
     double llk = 0;      // log-likelihood
     double _llk_tmp = 0; // debug for log-likelihood
 
-
     // cholesky
-    double potrf_start = magma_sync_wtime(queue);
-    info = magma_dpotrf_vbatched(
+    magma_dpotrf_vbatched(
         MagmaLower, aData->GetDeviceBatchNum(),
         aData->GetDeviceCovarianceArray(), aData->GetDeviceLDDA(),
         aData->GetDeviceInfo(), aData->GetBatchCount(),
         queue);
-    double potrf_time = magma_sync_wtime(queue) - potrf_start;
 
     // Check for Cholesky failures
-    double getvector_start = magma_sync_wtime(queue);
     magma_getvector(aData->GetBatchCount(), sizeof(int), aData->GetDeviceInfo(), 1, aData->GetHostInfo(), 1, queue);
-    double getvector_time = magma_sync_wtime(queue) - getvector_start;
 
-    double trsm_start = magma_sync_wtime(queue);
     magmablas_dtrsm_vbatched(
         MagmaLeft, MagmaLower, MagmaNoTrans, MagmaNonUnit,
         aData->GetDeviceBatchNum(), aData->GetDeviceConst1(), 1.,
         aData->GetDeviceCovarianceArray(), aData->GetDeviceLDDA(),
         aData->GetDeviceObservationsArrayCopy(), aData->GetDeviceLDDA(),
         aData->GetBatchCount(), queue);
-    double trsm_time = magma_sync_wtime(queue) - trsm_start;
     
-    // printMatrixGPU(h_lda[1], 1, h_obs_array_copy[1], h_ldda[1], 1);
-    double logdet_norm2_start = magma_sync_wtime(queue);
     for (int i = 0; i < aData->GetBatchCount(); ++i)
     {
         // determinant
@@ -638,58 +584,22 @@ T ParallelBlockEstimator<T>::Estimate(configurations::Configurations &aConfigura
                                         aData->GetHostObservationsArrayCopy()[i],
                                         1, queue);
     }
-    double logdet_norm2_time = magma_sync_wtime(queue) - logdet_norm2_start;
 
-
-    double llk_compute_start = magma_sync_wtime(queue);
     for (int k = 0; k < aData->GetBatchCount(); k++)
     {
         _llk_tmp = -(norm2_result_h[k] * norm2_result_h[k] + logdet_result_h[k] + aData->GetBatchNum()[k] * log(2 * PI)) * 0.5;
         llk += _llk_tmp;
     }
-    double llk_compute_time = magma_sync_wtime(queue) - llk_compute_start;
     
-    double total_time = magma_sync_wtime(queue) - total_start;
-    
-    // Increment iteration counter and log results
+    // Increment iteration counter
     aData->SetMleIterations(aData->GetMleIterations() + 1);
-    
+
     LOGGER("Iteration " + std::to_string(aData->GetMleIterations()) + 
-           " - Model Parameters (Variance, Range, Smoothness): (" +
-           std::to_string(theta[0]) + ", " +
-           std::to_string(theta[1]) + ", " +
-           std::to_string(theta[2]) + ") -> Loglik: " +
-           std::to_string(llk))
-    
-    // Detailed timing report (in seconds to match legacy code)
-    LOGGER("========== TIMING BREAKDOWN (seconds) ==========")
-    LOGGER("  1. Kernel Creation:              " + std::to_string(kernel_create_time) + " s")
-    LOGGER("  2. Main Covariance Generation:   " + std::to_string(cov_gen_time) + " s")
-    LOGGER("  3. Conditioning Cov Generation:  " + std::to_string(conditioning_cov_time) + " s")
-    LOGGER("  4. Memory Operations Total:      " + std::to_string(mem_copy_time) + " s")
-    LOGGER("     - Observations Copy:          " + std::to_string(obs_copy_time) + " s")
-    LOGGER("     - Covariance Transfer:        " + std::to_string(cov_transfer_time) + " s")
-    
-    if (aConfigurations.GetConditioningSize() > 0) {
-        LOGGER("  5. Conditioning Operations Total: " + std::to_string(conditioning_ops_time) + " s")
-        LOGGER("     - Transfer to Device:         " + std::to_string(conditioning_transfer_time) + " s")
-        LOGGER("     - POTRF (Cholesky):           " + std::to_string(conditioning_potrf_time) + " s")
-        LOGGER("     - TRSM #1:                    " + std::to_string(conditioning_trsm1_time) + " s")
-        LOGGER("     - TRSM #2:                    " + std::to_string(conditioning_trsm2_time) + " s")
-        LOGGER("     - GEMM #1:                    " + std::to_string(conditioning_gemm1_time) + " s")
-        LOGGER("     - GEMM #2:                    " + std::to_string(conditioning_gemm2_time) + " s")
-        LOGGER("     - GEADD Operations:           " + std::to_string(conditioning_geadd_time) + " s")
-    }
-    
-    LOGGER("  6. Independent Blocks Operations:")
-    LOGGER("     - POTRF (Cholesky):           " + std::to_string(potrf_time) + " s")
-    LOGGER("     - GetVector:                  " + std::to_string(getvector_time) + " s")
-    LOGGER("     - TRSM:                       " + std::to_string(trsm_time) + " s")
-    LOGGER("     - LogDet + Norm2:             " + std::to_string(logdet_norm2_time) + " s")
-    LOGGER("  7. Log-Likelihood Computation:   " + std::to_string(llk_compute_time) + " s")
-    LOGGER("  ------------------------------------------------")
-    LOGGER("  TOTAL ITERATION TIME:            " + std::to_string(total_time) + " s")
-    LOGGER("======================================================")
+    " - Model Parameters (Variance, Range, Smoothness): (" +
+    std::to_string(theta[0]) + ", " +
+    std::to_string(theta[1]) + ", " +
+    std::to_string(theta[2]) + ") -> Loglik: " +
+    std::to_string(llk))
 
     return llk;
 }

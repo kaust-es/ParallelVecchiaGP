@@ -730,38 +730,7 @@ double performComputationOnGPU(const GpuData &gpuData, const std::vector<double>
     // For all kernels in ScaledBlock mode: theta = [sigma2, nugget, range...]
     int range_offset = 2;  // Skip sigma2 and nugget to get to range parameters
     
-    // Timing events
-    cudaEvent_t start_memcpy, end_memcpy;
-    cudaEvent_t start_cov_gen, end_cov_gen;
-    cudaEvent_t start_cond_potrf, end_cond_potrf;
-    cudaEvent_t start_cond_trsm, end_cond_trsm;
-    cudaEvent_t start_cond_gemm, end_cond_gemm;
-    cudaEvent_t start_cond_geadd, end_cond_geadd;
-    cudaEvent_t start_llk_potrf, end_llk_potrf;
-    cudaEvent_t start_llk_trsm, end_llk_trsm;
-    cudaEvent_t start_llk_norm, end_llk_norm;
-    
-    checkCudaError(cudaEventCreate(&start_memcpy));
-    checkCudaError(cudaEventCreate(&end_memcpy));
-    checkCudaError(cudaEventCreate(&start_cov_gen));
-    checkCudaError(cudaEventCreate(&end_cov_gen));
-    checkCudaError(cudaEventCreate(&start_cond_potrf));
-    checkCudaError(cudaEventCreate(&end_cond_potrf));
-    checkCudaError(cudaEventCreate(&start_cond_trsm));
-    checkCudaError(cudaEventCreate(&end_cond_trsm));
-    checkCudaError(cudaEventCreate(&start_cond_gemm));
-    checkCudaError(cudaEventCreate(&end_cond_gemm));
-    checkCudaError(cudaEventCreate(&start_cond_geadd));
-    checkCudaError(cudaEventCreate(&end_cond_geadd));
-    checkCudaError(cudaEventCreate(&start_llk_potrf));
-    checkCudaError(cudaEventCreate(&end_llk_potrf));
-    checkCudaError(cudaEventCreate(&start_llk_trsm));
-    checkCudaError(cudaEventCreate(&end_llk_trsm));
-    checkCudaError(cudaEventCreate(&start_llk_norm));
-    checkCudaError(cudaEventCreate(&end_llk_norm));
-    
     // Copy data from device to device (for observations backup)
-    checkCudaError(cudaEventRecord(start_memcpy, stream));
     checkCudaError(cudaMemcpy(gpuData.d_observations_neighbors_copy_device, 
                                gpuData.d_observations_neighbors_device, 
                                gpuData.total_observations_neighbors_size, 
@@ -782,11 +751,9 @@ double performComputationOnGPU(const GpuData &gpuData, const std::vector<double>
                                    dim * sizeof(double), 
                                    cudaMemcpyHostToDevice));
     }
-    checkCudaError(cudaEventRecord(end_memcpy, stream));
     
     // 1. Generate covariance matrices using batched operations
     // CRITICAL OPTIMIZATION: Pass pre-computed max dimensions to avoid expensive thrust::reduce!
-    checkCudaError(cudaEventRecord(start_cov_gen, stream));
     compute_covariance_vbatched(gpuData.d_locs_array,
                 gpuData.d_lda_locs, 1, gpuData.total_locs_num_device,
                 gpuData.d_locs_array,
@@ -811,19 +778,15 @@ double performComputationOnGPU(const GpuData &gpuData, const std::vector<double>
                 batchCount,
                 dim, theta, gpuData.d_range_device, true, stream, aConfigurations,
                 max_m, max_m);  // conditioning cov: m x m
-    checkCudaError(cudaEventRecord(end_cov_gen, stream));
     
     // 2. Compute conditioning correction (Schur complement)
     // 2.1 Cholesky factorization of conditioning covariance
-    checkCudaError(cudaEventRecord(start_cond_potrf, stream));
     checkMagmaError(magma_dpotrf_vbatched_max_nocheck(
             MagmaLower, d_lda_locs_neighbors,
             gpuData.d_conditioning_cov_array, d_ldda_conditioning_cov,
             dinfo_magma, batchCount, max_m, queue));
-    checkCudaError(cudaEventRecord(end_cond_potrf, stream));
     
     // 2.2 Triangular solve (TRSM)
-    checkCudaError(cudaEventRecord(start_cond_trsm, stream));
     magmablas_dtrsm_vbatched_max_nocheck(MagmaLeft, MagmaLower, MagmaNoTrans, MagmaNonUnit, 
                         max_m, max_n1, 
                         d_lda_locs_neighbors, d_lda_locs,
@@ -838,10 +801,8 @@ double performComputationOnGPU(const GpuData &gpuData, const std::vector<double>
                         gpuData.d_conditioning_cov_array, d_ldda_conditioning_cov,
                         gpuData.d_observations_neighbors_copy_array, d_ldda_neighbors,
                         batchCount, queue);
-    checkCudaError(cudaEventRecord(end_cond_trsm, stream));
     
     // 2.3 Matrix multiplication (GEMM) for covariance and mean correction
-    checkCudaError(cudaEventRecord(start_cond_gemm, stream));
     magmablas_dgemm_vbatched_max_nocheck(MagmaTrans, MagmaNoTrans,
                              d_lda_locs, d_lda_locs, d_lda_locs_neighbors,
                              1, gpuData.d_cross_cov_array, d_ldda_cross_cov,
@@ -858,10 +819,8 @@ double performComputationOnGPU(const GpuData &gpuData, const std::vector<double>
                              batchCount, 
                              max_n1, max_n2, max_m,
                              queue);
-    checkCudaError(cudaEventRecord(end_cond_gemm, stream));
     
     // 2.4 Compute conditional mean and variance
-    checkCudaError(cudaEventRecord(start_cond_geadd, stream));
     for (size_t i = 0; i < batchCount; ++i) {
         // Conditional variance: cov -= cov_correction
         magmablas_dgeadd(gpuData.lda_locs[i], gpuData.lda_locs[i],
@@ -876,32 +835,25 @@ double performComputationOnGPU(const GpuData &gpuData, const std::vector<double>
                         gpuData.h_observations_copy_array[i], gpuData.ldda_locs[i],
                         queue);
     }
-    checkCudaError(cudaEventRecord(end_cond_geadd, stream));
     
     // 3. Compute log-likelihood
     // 3.1 Cholesky factorization of conditional covariance
-    checkCudaError(cudaEventRecord(start_llk_potrf, stream));
     checkMagmaError(magma_dpotrf_vbatched(
             MagmaLower, d_lda_locs,
             gpuData.d_cov_array, d_ldda_cov,
             dinfo_magma, batchCount, queue));
-    checkCudaError(cudaEventRecord(end_llk_potrf, stream));
     
     // 3.2 Triangular solve for observations
-    checkCudaError(cudaEventRecord(start_llk_trsm, stream));
     magmablas_dtrsm_vbatched(
         MagmaLeft, MagmaLower, MagmaNoTrans, MagmaNonUnit,
         d_lda_locs, d_const1, 1.,
         gpuData.d_cov_array, d_ldda_cov,
         gpuData.d_observations_copy_array, d_ldda_locs,
         batchCount, queue);
-    checkCudaError(cudaEventRecord(end_llk_trsm, stream));
     
     // 3.3 Compute norm and determinant
-    checkCudaError(cudaEventRecord(start_llk_norm, stream));
     double norm2_item = norm2_batch(d_lda_locs, gpuData.d_observations_copy_array, d_ldda_locs, batchCount, stream);
     double log_det_item = log_det_batch(d_lda_locs, gpuData.d_cov_array, d_ldda_cov, batchCount, stream);
-    checkCudaError(cudaEventRecord(end_llk_norm, stream));
     
     // 3.4 Compute local log-likelihood
     double log_likelihood = -0.5 * (log_det_item + norm2_item);
@@ -909,62 +861,6 @@ double performComputationOnGPU(const GpuData &gpuData, const std::vector<double>
     // 3.5 MPI reduction to get total log-likelihood
     double log_likelihood_all = 0;
     MPI_Allreduce(&log_likelihood, &log_likelihood_all, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-    
-    // Synchronize and get timing
-    checkCudaError(cudaEventSynchronize(end_llk_norm));
-    
-    float ms_memcpy = 0, ms_cov_gen = 0, ms_cond_potrf = 0, ms_cond_trsm = 0;
-    float ms_cond_gemm = 0, ms_cond_geadd = 0, ms_llk_potrf = 0, ms_llk_trsm = 0, ms_llk_norm = 0;
-    
-    checkCudaError(cudaEventElapsedTime(&ms_memcpy, start_memcpy, end_memcpy));
-    checkCudaError(cudaEventElapsedTime(&ms_cov_gen, start_cov_gen, end_cov_gen));
-    checkCudaError(cudaEventElapsedTime(&ms_cond_potrf, start_cond_potrf, end_cond_potrf));
-    checkCudaError(cudaEventElapsedTime(&ms_cond_trsm, start_cond_trsm, end_cond_trsm));
-    checkCudaError(cudaEventElapsedTime(&ms_cond_gemm, start_cond_gemm, end_cond_gemm));
-    checkCudaError(cudaEventElapsedTime(&ms_cond_geadd, start_cond_geadd, end_cond_geadd));
-    checkCudaError(cudaEventElapsedTime(&ms_llk_potrf, start_llk_potrf, end_llk_potrf));
-    checkCudaError(cudaEventElapsedTime(&ms_llk_trsm, start_llk_trsm, end_llk_trsm));
-    checkCudaError(cudaEventElapsedTime(&ms_llk_norm, start_llk_norm, end_llk_norm));
-    
-    // Print detailed timing for EVERY iteration (rank 0 only)
-    if (rank == 0) {
-        std::cout << "========== GPU COMPUTATION TIMING BREAKDOWN (seconds) ==========" << std::endl;
-        std::cout << "  1. Memory Copy (D2D):         " << std::fixed << std::setprecision(6) << (ms_memcpy / 1000.0) << " s" << std::endl;
-        std::cout << "  2. Covariance Generation:     " << (ms_cov_gen / 1000.0) << " s" << std::endl;
-        std::cout << "  3. Conditioning Operations:" << std::endl;
-        std::cout << "     - POTRF (Cholesky):        " << (ms_cond_potrf / 1000.0) << " s" << std::endl;
-        std::cout << "     - TRSM:                    " << (ms_cond_trsm / 1000.0) << " s" << std::endl;
-        std::cout << "     - GEMM:                    " << (ms_cond_gemm / 1000.0) << " s" << std::endl;
-        std::cout << "     - GEADD:                   " << (ms_cond_geadd / 1000.0) << " s" << std::endl;
-        std::cout << "  4. Log-Likelihood Operations:" << std::endl;
-        std::cout << "     - POTRF (Cholesky):        " << (ms_llk_potrf / 1000.0) << " s" << std::endl;
-        std::cout << "     - TRSM:                    " << (ms_llk_trsm / 1000.0) << " s" << std::endl;
-        std::cout << "     - Norm + LogDet:           " << (ms_llk_norm / 1000.0) << " s" << std::endl;
-        float total_ms = ms_memcpy + ms_cov_gen + ms_cond_potrf + ms_cond_trsm + ms_cond_gemm + ms_cond_geadd + ms_llk_potrf + ms_llk_trsm + ms_llk_norm;
-        std::cout << "  ------------------------------------------------" << std::endl;
-        std::cout << "  TOTAL GPU COMPUTATION:        " << (total_ms / 1000.0) << " s" << std::endl;
-        std::cout << "======================================================" << std::endl;
-    }
-    
-    // Cleanup events
-    checkCudaError(cudaEventDestroy(start_memcpy));
-    checkCudaError(cudaEventDestroy(end_memcpy));
-    checkCudaError(cudaEventDestroy(start_cov_gen));
-    checkCudaError(cudaEventDestroy(end_cov_gen));
-    checkCudaError(cudaEventDestroy(start_cond_potrf));
-    checkCudaError(cudaEventDestroy(end_cond_potrf));
-    checkCudaError(cudaEventDestroy(start_cond_trsm));
-    checkCudaError(cudaEventDestroy(end_cond_trsm));
-    checkCudaError(cudaEventDestroy(start_cond_gemm));
-    checkCudaError(cudaEventDestroy(end_cond_gemm));
-    checkCudaError(cudaEventDestroy(start_cond_geadd));
-    checkCudaError(cudaEventDestroy(end_cond_geadd));
-    checkCudaError(cudaEventDestroy(start_llk_potrf));
-    checkCudaError(cudaEventDestroy(end_llk_potrf));
-    checkCudaError(cudaEventDestroy(start_llk_trsm));
-    checkCudaError(cudaEventDestroy(end_llk_trsm));
-    checkCudaError(cudaEventDestroy(start_llk_norm));
-    checkCudaError(cudaEventDestroy(end_llk_norm));
     
     return log_likelihood_all;
 }
@@ -1085,29 +981,9 @@ T ScaledBlockEstimator<T>::Estimate(Configurations &aConfigurations,
     }
     
     // Timing for GPU computation
-    cudaEvent_t startEv, stopEv;
-    checkCudaError(cudaEventCreate(&startEv));
-    checkCudaError(cudaEventCreate(&stopEv));
-    checkCudaError(cudaEventRecord(startEv, stream));
-    
     // Perform GPU computation
     double log_likelihood = performComputationOnGPU(gpuData, theta, aConfigurations, stream, queue);
-    
-    checkCudaError(cudaEventRecord(stopEv, stream));
-    checkCudaError(cudaEventSynchronize(stopEv));
-    float ms = 0.0f;
-    checkCudaError(cudaEventElapsedTime(&ms, startEv, stopEv));
-    checkCudaError(cudaEventDestroy(startEv));
-    checkCudaError(cudaEventDestroy(stopEv));
-    
     call_count++;
-    
-    // Store ONLY the last iteration's GPU timing (don't accumulate)
-    // This matches the old code behavior where timing represents a single evaluation
-    double gpu_time_seconds = ms / 1000.0;
-    aData->GetTimingData().gpu_total += gpu_time_seconds;
-    aData->GetTimingData().computation += gpu_time_seconds;
-    
     // Print optimization info
     if (rank == 0) {
         std::cout << "Optimization step: " << call_count << ", ";
@@ -1118,7 +994,7 @@ T ScaledBlockEstimator<T>::Estimate(Configurations &aConfigurations,
         }
         std::cout << std::endl;
     }
-    
+
     // Return log-likelihood (positive value for NLOPT maximization)
     return static_cast<T>(log_likelihood);
     
