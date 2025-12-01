@@ -696,7 +696,8 @@ void compute_covariance_vbatched(
     double **d_cov, int *d_ldda, int *d_n,
     size_t batchCount,
     int dim, const std::vector<double> &theta, double *d_range,
-    bool add_nugget, cudaStream_t stream, Configurations &opts);
+    bool add_nugget, cudaStream_t stream, Configurations &opts,
+    int max_ldx1, int max_ldx2);
 
 double norm2_batch(int *d_n, double **d_vec, int *d_ldda, size_t batchCount, cudaStream_t stream);
 double log_det_batch(int *d_n, double **d_L, int *d_ldda, size_t batchCount, cudaStream_t stream);
@@ -784,6 +785,7 @@ double performComputationOnGPU(const GpuData &gpuData, const std::vector<double>
     checkCudaError(cudaEventRecord(end_memcpy, stream));
     
     // 1. Generate covariance matrices using batched operations
+    // CRITICAL OPTIMIZATION: Pass pre-computed max dimensions to avoid expensive thrust::reduce!
     checkCudaError(cudaEventRecord(start_cov_gen, stream));
     compute_covariance_vbatched(gpuData.d_locs_array,
                 gpuData.d_lda_locs, 1, gpuData.total_locs_num_device,
@@ -791,21 +793,24 @@ double performComputationOnGPU(const GpuData &gpuData, const std::vector<double>
                 gpuData.d_lda_locs, 1, gpuData.total_locs_num_device,
                 gpuData.d_cov_array, gpuData.d_ldda_cov, gpuData.d_lda_locs,
                 batchCount,
-                dim, theta, gpuData.d_range_device, true, stream, aConfigurations);
+                dim, theta, gpuData.d_range_device, true, stream, aConfigurations,
+                max_n1, max_n1);  // main cov: n1 x n1
     compute_covariance_vbatched(gpuData.d_locs_neighbors_array, 
                 gpuData.d_lda_locs_neighbors, 1, gpuData.total_locs_neighbors_num_device,
                 gpuData.d_locs_array,
                 gpuData.d_lda_locs, 1, gpuData.total_locs_num_device,
                 gpuData.d_cross_cov_array, gpuData.d_ldda_cross_cov, gpuData.d_lda_locs,
                 batchCount,
-                dim, theta, gpuData.d_range_device, false, stream, aConfigurations);
+                dim, theta, gpuData.d_range_device, false, stream, aConfigurations,
+                max_m, max_n1);  // cross cov: m x n1
     compute_covariance_vbatched(gpuData.d_locs_neighbors_array,
                 gpuData.d_lda_locs_neighbors, 1, gpuData.total_locs_neighbors_num_device,
                 gpuData.d_locs_neighbors_array, 
                 gpuData.d_lda_locs_neighbors, 1, gpuData.total_locs_neighbors_num_device,
                 gpuData.d_conditioning_cov_array, gpuData.d_ldda_conditioning_cov, gpuData.d_lda_locs_neighbors,
                 batchCount,
-                dim, theta, gpuData.d_range_device, true, stream, aConfigurations);
+                dim, theta, gpuData.d_range_device, true, stream, aConfigurations,
+                max_m, max_m);  // conditioning cov: m x m
     checkCudaError(cudaEventRecord(end_cov_gen, stream));
     
     // 2. Compute conditioning correction (Schur complement)

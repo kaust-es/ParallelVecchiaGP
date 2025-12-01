@@ -4,6 +4,7 @@
 # synthetic data for testing
 tests/cpp-tests/data-generators/concrete/synthetic_ds
 synthetic_ds/
+log/
 
 # intallation directory
 installdir/

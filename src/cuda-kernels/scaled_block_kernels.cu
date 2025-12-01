@@ -144,6 +144,9 @@ __global__ void PowerExp_matcov_scaled_kernel(
  * 
  * Main entry point for batched covariance generation. Dispatches to the appropriate
  * kernel based on the kernel type specified in the configuration.
+ * 
+ * CRITICAL OPTIMIZATION: Pass max_ldx1 and max_ldx2 as parameters instead of recomputing
+ * them with thrust::reduce on every call (huge bottleneck for large batch counts)!
  */
 void compute_covariance_vbatched(
     double **d_locs_A, int *d_lda_A, int inca, size_t total_A,
@@ -151,14 +154,8 @@ void compute_covariance_vbatched(
     double **d_cov, int *d_ldda, int *d_n,
     size_t batchCount,
     int dim, const std::vector<double> &theta, double *d_range,
-    bool add_nugget, cudaStream_t stream, Configurations &opts) {
-    
-    // Find max dimensions for grid sizing
-    thrust::device_ptr<const int> d_ldx1(d_lda_A);
-    thrust::device_ptr<const int> d_ldx2(d_lda_B);
-    
-    int max_ldx1 = thrust::reduce(thrust::cuda::par.on(stream), d_ldx1, d_ldx1 + batchCount, 0, thrust::maximum<int>());
-    int max_ldx2 = thrust::reduce(thrust::cuda::par.on(stream), d_ldx2, d_ldx2 + batchCount, 0, thrust::maximum<int>());
+    bool add_nugget, cudaStream_t stream, Configurations &opts,
+    int max_ldx1, int max_ldx2) {
     
     // Dispatch based on kernel type
     std::string kernel_type = opts.GetKernelType();
