@@ -38,19 +38,8 @@ endif()
 # Fallback if pkg-config failed
 if (NOT PC_MAGMA_FOUND)
 
-    # Prefer system MAGMA when MAGMA_ROOT or MAGMA_DIR is set (matches faster Makefile approach)
-    # Check for MAGMA_ROOT first (matches Makefile: _MAGMA_ROOT_)
-    if(DEFINED ENV{MAGMA_ROOT})
-        set(MAGMA_ROOT $ENV{MAGMA_ROOT})
-        message(STATUS "Using MAGMA_ROOT: ${MAGMA_ROOT}")
-        # Add system MAGMA library paths
-        link_directories("${MAGMA_ROOT}/lib")
-        link_directories("${MAGMA_ROOT}/lib64")
-    endif()
-
     # Allow override by user
     set(MAGMA_ROOT
-        $ENV{MAGMA_ROOT}
         $ENV{MAGMA_DIR}
         ${CMAKE_INSTALL_PREFIX}/MAGMA
         CACHE PATH "Root directory of MAGMA installation"
