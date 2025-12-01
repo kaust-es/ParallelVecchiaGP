@@ -769,10 +769,18 @@ double performComputationOnGPU(const GpuData &gpuData, const std::vector<double>
                                gpuData.d_observations_device, 
                                gpuData.total_observations_points_size, 
                                cudaMemcpyDeviceToDevice));
-    checkCudaError(cudaMemcpy(gpuData.d_range_device, 
-                               theta.data() + range_offset, 
-                               dim * sizeof(double), 
-                               cudaMemcpyHostToDevice));
+    // CRITICAL OPTIMIZATION: Precompute 1/(range²) on CPU so GPU can multiply instead of divide!
+    {
+        std::vector<double> inv_range2_host(dim);
+        for (int i = 0; i < dim; ++i) {
+            double r = theta[range_offset + i];
+            inv_range2_host[i] = 1.0 / (r * r);
+        }
+        checkCudaError(cudaMemcpy(gpuData.d_range_device, 
+                                   inv_range2_host.data(), 
+                                   dim * sizeof(double), 
+                                   cudaMemcpyHostToDevice));
+    }
     checkCudaError(cudaEventRecord(end_memcpy, stream));
     
     // 1. Generate covariance matrices using batched operations
