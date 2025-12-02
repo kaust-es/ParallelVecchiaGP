@@ -739,7 +739,7 @@ double performComputationOnGPU(const GpuData &gpuData, const std::vector<double>
                                gpuData.d_observations_device, 
                                gpuData.total_observations_points_size, 
                                cudaMemcpyDeviceToDevice));
-    // CRITICAL OPTIMIZATION: Precompute 1/(range²) on CPU so GPU can multiply instead of divide!
+    // Precompute 1/(range²) on CPU so GPU can multiply instead of divide!
     {
         std::vector<double> inv_range2_host(dim);
         for (int i = 0; i < dim; ++i) {
@@ -753,7 +753,7 @@ double performComputationOnGPU(const GpuData &gpuData, const std::vector<double>
     }
     
     // 1. Generate covariance matrices using batched operations
-    // CRITICAL OPTIMIZATION: Pass pre-computed max dimensions to avoid expensive thrust::reduce!
+    // Pass pre-computed max dimensions to avoid expensive thrust::reduce!
     compute_covariance_vbatched(gpuData.d_locs_array,
                 gpuData.d_lda_locs, 1, gpuData.total_locs_num_device,
                 gpuData.d_locs_array,

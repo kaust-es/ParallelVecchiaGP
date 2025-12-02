@@ -62,9 +62,6 @@ BUILDING_EXAMPLES="OFF"
 VERBOSE="OFF"
 USE_R="OFF"
 SHOW_WARNINGS="OFF"
-# Match faster repository flags: -O2 base, then add -O3 for release
-# Remove -Wl,--no-as-needed and -fpic (not in faster repo)
-# Keep -march=native for architecture-specific optimizations
 COMPILE_FLAGS="-Wall -O2 -fopenmp -std=c++17 -march=native"
 DEVELOPER_WARNINGS="-Wno-dev"
 

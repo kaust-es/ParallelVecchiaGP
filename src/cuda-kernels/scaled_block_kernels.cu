@@ -43,7 +43,7 @@ __device__ void Matern72_scaled_matcov_vbatched_kernel_device(
     double nugget, bool nugget_tag,
     int gtx, int gty) {
     if (gtx < ldx1 && gty < ldx2 && gtx >= 0 && gty >= 0) {
-        // CRITICAL OPTIMIZATION: Skip upper triangle for symmetric matrices (50% speedup!)
+        // Skip upper triangle for symmetric matrices (50% speedup!)
         if (d_X1 == d_X2 && gty > gtx) return;
         double dist_square = 0;
         for (int k = 0; k < dim; k++) {
@@ -145,7 +145,7 @@ __global__ void PowerExp_matcov_scaled_kernel(
  * Main entry point for batched covariance generation. Dispatches to the appropriate
  * kernel based on the kernel type specified in the configuration.
  * 
- * CRITICAL OPTIMIZATION: Pass max_ldx1 and max_ldx2 as parameters instead of recomputing
+ * Pass max_ldx1 and max_ldx2 as parameters instead of recomputing
  * them with thrust::reduce on every call (huge bottleneck for large batch counts)!
  */
 void compute_covariance_vbatched(

@@ -30,8 +30,7 @@ set(CMAKE_CUDA_FLAGS_DEBUG "${CMAKE_CUDA_FLAGS_DEBUG} -g -G")
 # Find the CUDA toolkit
 find_package(CUDAToolkit REQUIRED)
 
-# Set CUDA host compiler to match the C++ compiler (matches faster repo: -ccbin $(CXX))
-# This ensures CUDA uses the same compiler as the rest of the code (mpic++)
+
 if(CMAKE_CXX_COMPILER)
     set(CMAKE_CUDA_HOST_COMPILER ${CMAKE_CXX_COMPILER})
 endif()

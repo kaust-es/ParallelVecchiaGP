@@ -249,7 +249,7 @@ std::tuple<double, double, double> performPredictionOnGPU(const GpuData &gpuData
 
     // Use the data on the GPU for computation
     // 1. generate the covariance matrix, cross covariance matrix, conditioning covariance matrix
-    // CRITICAL OPTIMIZATION: Pass pre-computed max dimensions to avoid expensive thrust::reduce!
+    // Pass pre-computed max dimensions to avoid expensive thrust::reduce!
     compute_covariance_vbatched(gpuData.d_locs_array,
                 gpuData.d_lda_locs, 1, gpuData.total_locs_num_device,
                 gpuData.d_locs_array,

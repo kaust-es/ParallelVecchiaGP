@@ -32,7 +32,6 @@ endif ()
 # Set the name of the library to be created.
 set(LIB_NAME ${PROJECT_NAME})
 # Create the library with the specified source files and linking libraries.
-# Use SHARED library (matches faster repository approach)
 add_library(${LIB_NAME} SHARED ${SOURCES})
 
 # Set optimization flags to match faster repository
