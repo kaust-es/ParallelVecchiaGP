@@ -34,4 +34,3 @@ ImportDependency(${name} ${tag} ${version} ${url} "${flag}" "" ${is_cmake} ${is_
 
 # A status message is outputted to indicate the successful integration of the MAGMA library into the project.
 message(STATUS "${name} done")
-

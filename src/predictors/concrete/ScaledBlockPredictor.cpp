@@ -196,7 +196,8 @@ extern void compute_covariance_vbatched(
     double **d_cov, int *d_ldda, int *d_n,
     size_t batchCount,
     int dim, const std::vector<double> &theta, double *d_range,
-    bool add_nugget, cudaStream_t stream, Configurations &aConfigurations);
+    bool add_nugget, cudaStream_t stream, Configurations &aConfigurations,
+    int max_ldx1, int max_ldx2);
 
 
 #endif
@@ -248,27 +249,31 @@ std::tuple<double, double, double> performPredictionOnGPU(const GpuData &gpuData
 
     // Use the data on the GPU for computation
     // 1. generate the covariance matrix, cross covariance matrix, conditioning covariance matrix
+    // Pass pre-computed max dimensions to avoid expensive thrust::reduce!
     compute_covariance_vbatched(gpuData.d_locs_array,
                 gpuData.d_lda_locs, 1, gpuData.total_locs_num_device,
                 gpuData.d_locs_array,
                 gpuData.d_lda_locs, 1, gpuData.total_locs_num_device,
                 gpuData.d_cov_array, gpuData.d_ldda_cov, gpuData.d_lda_locs,
                 batchCount,
-                dim, theta, gpuData.d_range_device, true, stream, aConfigurations);
+                dim, theta, gpuData.d_range_device, true, stream, aConfigurations,
+                max_n1, max_n1);
     compute_covariance_vbatched(gpuData.d_locs_neighbors_array, 
                 gpuData.d_lda_locs_neighbors, 1, gpuData.total_locs_neighbors_num_device,
                 gpuData.d_locs_array,
                 gpuData.d_lda_locs, 1, gpuData.total_locs_num_device,
                 gpuData.d_cross_cov_array, gpuData.d_ldda_cross_cov, gpuData.d_lda_locs,
                 batchCount,
-                dim, theta, gpuData.d_range_device, false, stream, aConfigurations);
+                dim, theta, gpuData.d_range_device, false, stream, aConfigurations,
+                max_m, max_n1);
     compute_covariance_vbatched(gpuData.d_locs_neighbors_array,
                 gpuData.d_lda_locs_neighbors, 1, gpuData.total_locs_neighbors_num_device,
                 gpuData.d_locs_neighbors_array, 
                 gpuData.d_lda_locs_neighbors, 1, gpuData.total_locs_neighbors_num_device,
                 gpuData.d_conditioning_cov_array, gpuData.d_ldda_conditioning_cov, gpuData.d_lda_locs_neighbors,
                 batchCount,
-                dim, theta, gpuData.d_range_device, true, stream, aConfigurations);
+                dim, theta, gpuData.d_range_device, true, stream, aConfigurations,
+                max_m, max_m);
     // Synchronize to make sure the kernel has finished
     checkCudaError(cudaStreamSynchronize(stream));
     

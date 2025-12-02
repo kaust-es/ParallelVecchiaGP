@@ -20,6 +20,20 @@
 #include <utilities/Logger.hpp>
 #include <hardware/VecchiaHardware.hpp>
 
+// Legacy covariance generation (for performance comparison)
+extern "C" {
+    typedef struct {
+        double *x;
+        double *y;
+        double *z;
+    } location;
+    
+    void core_dcmg(double *A, int m, int n,
+                   location *l1, location *l2,
+                   const double *localtheta, int distance_metric,
+                   int z_flag, double dist_scale);
+}
+
 using namespace std;
 
 using namespace vecchia::estimators;
@@ -334,27 +348,42 @@ void core_Xlogdet(T *L, int An, int ldda, T *logdet_result_h)
 
 template<typename T>
 T ParallelBlockEstimator<T>::Estimate(configurations::Configurations &aConfigurations, std::unique_ptr<VecchiaGBData<T>> &aData, const double *theta) {
+    // Get the queue from the hardware instance (static accessor)
+    magma_queue_t queue = VecchiaHardware::GetQueue();
+    
     //-----------------------------------------------------------//
     //------------------Covariance matrix generation...-------------------//
     //-----------------------------------------------------------//
 
-    // Generate covariance matrix for X using trend_model kernel
-    // Register and create a kernel object
-    kernels::Kernel<T> *pKernel = plugins::PluginRegistry<kernels::Kernel<T>>::Create(aConfigurations.GetKernelName(), aConfigurations.GetTimeSlot());
-
-    // Use the FULL locations with offsets (kernel handles offset internally)
-    // This matches the old code's behavior
-#pragma omp parallel for
+    // Generate covariance matrix using LEGACY core_dcmg (for performance)
+    int z_flag = aConfigurations.GetTimeSlot() ? 1 : 0;
+    
+    // Parallel execution with OpenMP like legacy code
+    #pragma omp parallel for
     for (size_t i = 0; i < aData->GetBatchCount(); i++)
-    {   
-        int offset = aData->GetBatchNumAccum()[i];
+    {
+        // CRITICAL: Heap-allocate location struct EXACTLY like legacy code (line 141 in llh_Xvecchia_batch.h)
+        location *loc_batch = (location *)malloc(sizeof(location));
+        loc_batch->x = aData->GetNewLocations()->GetLocationX() + aData->GetBatchNumAccum()[i];
+        loc_batch->y = aData->GetNewLocations()->GetLocationY() + aData->GetBatchNumAccum()[i];
+        // CRITICAL FIX: Force NULL for 2D data (z_flag == 0)
+        loc_batch->z = (z_flag && aData->GetNewLocations()->GetLocationZ()) ? 
+                       (aData->GetNewLocations()->GetLocationZ() + aData->GetBatchNumAccum()[i]) : NULL;
         
-        pKernel->GenerateCovarianceMatrix(
-            aData->GetHostCovariance() + aData->GetBatchNumSquareAccum()[i], 
-            aData->GetBatchNum()[i], aData->GetBatchNum()[i], 
-            offset, offset,  // Kernel uses offsets internally
-            *aData->GetNewLocations(), *aData->GetNewLocations(), *aData->GetNewLocations(), 
-            const_cast<double*>(theta), aConfigurations.GetDistanceMetric());
+        core_dcmg(
+            aData->GetHostCovariance() + aData->GetBatchNumSquareAccum()[i],
+            aData->GetBatchNum()[i],
+            aData->GetBatchNum()[i],
+            loc_batch,
+            loc_batch,
+            theta,
+            aConfigurations.GetDistanceMetric(),
+            z_flag,
+            1.0  // dist_scale
+        );
+        
+        // Free the location struct like legacy code (line 179 in llh_Xvecchia_batch.h)
+        free(loc_batch);
     }
     
     if(aConfigurations.GetConditioningSize() > 0){
@@ -362,25 +391,48 @@ T ParallelBlockEstimator<T>::Estimate(configurations::Configurations &aConfigura
         
 #pragma omp parallel for
         for (size_t i = 0; i < aData->GetBatchCount(); i++){ 
-            int offset_conditioning = i * cs;
-            int offset_batch = aData->GetBatchNumAccum()[i];
+            // CRITICAL: Heap-allocate location structs EXACTLY like legacy code
+            location *loc_batch_con = (location *)malloc(sizeof(location));
+            loc_batch_con->x = aData->GetConditioningLocations()->GetLocationX() + i * cs;
+            loc_batch_con->y = aData->GetConditioningLocations()->GetLocationY() + i * cs;
+            // CRITICAL FIX: Force NULL for 2D data (z_flag == 0)
+            loc_batch_con->z = (z_flag && aData->GetConditioningLocations()->GetLocationZ()) ? 
+                               (aData->GetConditioningLocations()->GetLocationZ() + i * cs) : NULL;
+            
+            location *loc_batch = (location *)malloc(sizeof(location));
+            loc_batch->x = aData->GetNewLocations()->GetLocationX() + aData->GetBatchNumAccum()[i];
+            loc_batch->y = aData->GetNewLocations()->GetLocationY() + aData->GetBatchNumAccum()[i];
+            // CRITICAL FIX: Force NULL for 2D data (z_flag == 0)
+            loc_batch->z = (z_flag && aData->GetNewLocations()->GetLocationZ()) ? 
+                           (aData->GetNewLocations()->GetLocationZ() + aData->GetBatchNumAccum()[i]) : NULL;
             
             // Generate conditioning covariance: sigma_{22}
-            pKernel->GenerateCovarianceMatrix(
-                aData->GetHostConditioningCov() + i * cs * cs, 
-                cs, cs, 
-                offset_conditioning, offset_conditioning,
-                *aData->GetConditioningLocations(), *aData->GetConditioningLocations(), *aData->GetConditioningLocations(), 
-                const_cast<double*>(theta), aConfigurations.GetDistanceMetric());
+            core_dcmg(
+                aData->GetHostConditioningCov() + i * cs * cs,
+                cs, cs,
+                loc_batch_con,
+                loc_batch_con,
+                theta,
+                aConfigurations.GetDistanceMetric(),
+                z_flag,
+                1.0
+            );
 
             // Generate cross covariance: sigma_{12}
-            pKernel->GenerateCovarianceMatrix(
-                aData->GetHostCrossCov() + cs * offset_batch, 
-                cs, aData->GetBatchNum()[i], 
-                offset_conditioning, offset_batch,
-                *aData->GetConditioningLocations(), *aData->GetNewLocations(), *aData->GetNewLocations(), 
-                const_cast<double*>(theta), aConfigurations.GetDistanceMetric());
-
+            core_dcmg(
+                aData->GetHostCrossCov() + cs * aData->GetBatchNumAccum()[i],
+                cs, aData->GetBatchNum()[i],
+                loc_batch_con,
+                loc_batch,
+                theta,
+                aConfigurations.GetDistanceMetric(),
+                z_flag,
+                1.0
+            );
+            
+            // Free the location structs like legacy code
+            free(loc_batch_con);
+            free(loc_batch);
         }
     }
     
@@ -388,8 +440,7 @@ T ParallelBlockEstimator<T>::Estimate(configurations::Configurations &aConfigura
     //------------------Memory set/get/...-----------------------//
     //-----------------------------------------------------------//
     double *host_Cov_tmp, *device_Cov_tmp;
-    // Get the queue from the hardware instance (static accessor)
-    magma_queue_t queue = VecchiaHardware::GetQueue();
+    
     // copy the observations, which is overwritten for each iteration
     magma_dcopy(aData->GetHostLDDAConditioning()[0] * aData->GetBatchCount(), aData->GetDeviceConditioningObs(), 1, aData->GetDeviceObservationsConditioningCopy(), 1, queue);
     magma_dcopy(aData->GetTotalSizeDeviceObservations(), aData->GetDeviceObservations(), 1, aData->GetDeviceObservationsCopy(), 1, queue);
@@ -435,12 +486,10 @@ T ParallelBlockEstimator<T>::Estimate(configurations::Configurations &aConfigura
             
         }
 
-
-
         //-----------------------------------------------------//
         //------------------Conditioning-----------------------//
         //-----------------------------------------------------//
-        int info = magma_dpotrf_vbatched(
+        magma_dpotrf_vbatched(
             MagmaLower, aData->GetDeviceLDAConditioning(),
             aData->GetDeviceCovarianceConditioningArray(), aData->GetDeviceLDDAConditioning(),
             aData->GetDeviceInfo(), aData->GetBatchCount(),
@@ -504,13 +553,11 @@ T ParallelBlockEstimator<T>::Estimate(configurations::Configurations &aConfigura
     // intermidiate results
     double *logdet_result_h = aData->GetLogDetResults();
     double *norm2_result_h = aData->GetNorm2Results();
-    int info = 0;        // debug for potrf
     double llk = 0;      // log-likelihood
     double _llk_tmp = 0; // debug for log-likelihood
 
-
     // cholesky
-    info = magma_dpotrf_vbatched(
+    magma_dpotrf_vbatched(
         MagmaLower, aData->GetDeviceBatchNum(),
         aData->GetDeviceCovarianceArray(), aData->GetDeviceLDDA(),
         aData->GetDeviceInfo(), aData->GetBatchCount(),
@@ -525,7 +572,7 @@ T ParallelBlockEstimator<T>::Estimate(configurations::Configurations &aConfigura
         aData->GetDeviceCovarianceArray(), aData->GetDeviceLDDA(),
         aData->GetDeviceObservationsArrayCopy(), aData->GetDeviceLDDA(),
         aData->GetBatchCount(), queue);
-    // printMatrixGPU(h_lda[1], 1, h_obs_array_copy[1], h_ldda[1], 1);
+    
     for (int i = 0; i < aData->GetBatchCount(); ++i)
     {
         // determinant
@@ -538,22 +585,21 @@ T ParallelBlockEstimator<T>::Estimate(configurations::Configurations &aConfigura
                                         1, queue);
     }
 
-
     for (int k = 0; k < aData->GetBatchCount(); k++)
     {
         _llk_tmp = -(norm2_result_h[k] * norm2_result_h[k] + logdet_result_h[k] + aData->GetBatchNum()[k] * log(2 * PI)) * 0.5;
         llk += _llk_tmp;
     }
     
-    // Increment iteration counter and log results
+    // Increment iteration counter
     aData->SetMleIterations(aData->GetMleIterations() + 1);
-    
+
     LOGGER("Iteration " + std::to_string(aData->GetMleIterations()) + 
-           " - Model Parameters (Variance, Range, Smoothness): (" +
-           std::to_string(theta[0]) + ", " +
-           std::to_string(theta[1]) + ", " +
-           std::to_string(theta[2]) + ") -> Loglik: " +
-           std::to_string(llk))
+    " - Model Parameters (Variance, Range, Smoothness): (" +
+    std::to_string(theta[0]) + ", " +
+    std::to_string(theta[1]) + ", " +
+    std::to_string(theta[2]) + ") -> Loglik: " +
+    std::to_string(llk))
 
     return llk;
 }

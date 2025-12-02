@@ -36,18 +36,22 @@ using namespace vecchia::common;
 
 // Matern 7/2 kernel (scaled, with device function for batched operations)
 __device__ void Matern72_scaled_matcov_vbatched_kernel_device(
-    const double* d_X1, int ldx1, int incx1, int stridex1,
-    const double* d_X2, int ldx2, int incx2, int stridex2,
-    double* d_C, int ldc, int n, int dim, 
-    double sigma2, const double* range, 
+    const double* __restrict__ d_X1, int ldx1, int incx1, int stridex1,
+    const double* __restrict__ d_X2, int ldx2, int incx2, int stridex2,
+    double* __restrict__ d_C, int ldc, int n, int dim, 
+    double sigma2, const double* __restrict__ range, 
     double nugget, bool nugget_tag,
     int gtx, int gty) {
     if (gtx < ldx1 && gty < ldx2 && gtx >= 0 && gty >= 0) {
+        // Skip upper triangle for symmetric matrices (50% speedup!)
+        if (d_X1 == d_X2 && gty > gtx) return;
         double dist_square = 0;
         for (int k = 0; k < dim; k++) {
             double x1 = d_X1[gtx * incx1 + k * stridex1];
             double x2 = d_X2[gty * incx2 + k * stridex2];
-            dist_square += (x1 - x2) * (x1 - x2) / range[k] / range[k];
+            double diff = x1 - x2;
+            // OPTIMIZATION: Use multiplication instead of division (range contains inv_range²)
+            dist_square += diff * diff * range[k];
         }
         double scaled_distance = sqrt(dist_square);
         double a0 = 1.0;
@@ -65,10 +69,10 @@ __device__ void Matern72_scaled_matcov_vbatched_kernel_device(
 
 // Batched Matern 7/2 kernel
 __global__ void Matern72_scaled_matcov_vbatched_kernel(
-    double** d_X1, const int* ldx1, int incx1, int stridex1,
-    double** d_X2, const int* ldx2, int incx2, int stridex2,
-    double** d_C, const int* ldc, const int* n, int dim, 
-    const double sigma2, const double nugget, const double* range, bool nugget_tag) {
+    double** __restrict__ d_X1, const int* __restrict__ ldx1, int incx1, int stridex1,
+    double** __restrict__ d_X2, const int* __restrict__ ldx2, int incx2, int stridex2,
+    double** __restrict__ d_C, const int* __restrict__ ldc, const int* __restrict__ n, int dim, 
+    const double sigma2, const double nugget, const double* __restrict__ range, bool nugget_tag) {
     
     const int batchid = blockIdx.z;
     const int gtx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -83,10 +87,10 @@ __global__ void Matern72_scaled_matcov_vbatched_kernel(
 
 // Batched Matern 7/2 wrapper
 void Matern72_scaled_matcov_vbatched(
-    double** d_X1, const int* ldx1, int incx1, int stridex1,
-    double** d_X2, const int* ldx2, int incx2, int stridex2,
-    double** d_C, const int* ldc, const int* n, int dim, const std::vector<double> &theta,
-    const double* range, bool nugget_tag, 
+    double** __restrict__ d_X1, const int* __restrict__ ldx1, int incx1, int stridex1,
+    double** __restrict__ d_X2, const int* __restrict__ ldx2, int incx2, int stridex2,
+    double** __restrict__ d_C, const int* __restrict__ ldc, const int* __restrict__ n, int dim, const std::vector<double> &theta,
+    const double* __restrict__ range, bool nugget_tag, 
     int max_ldx1, int max_ldx2,
     int batchCount, cudaStream_t stream) {
     
@@ -140,6 +144,9 @@ __global__ void PowerExp_matcov_scaled_kernel(
  * 
  * Main entry point for batched covariance generation. Dispatches to the appropriate
  * kernel based on the kernel type specified in the configuration.
+ * 
+ * Pass max_ldx1 and max_ldx2 as parameters instead of recomputing
+ * them with thrust::reduce on every call (huge bottleneck for large batch counts)!
  */
 void compute_covariance_vbatched(
     double **d_locs_A, int *d_lda_A, int inca, size_t total_A,
@@ -147,14 +154,8 @@ void compute_covariance_vbatched(
     double **d_cov, int *d_ldda, int *d_n,
     size_t batchCount,
     int dim, const std::vector<double> &theta, double *d_range,
-    bool add_nugget, cudaStream_t stream, Configurations &opts) {
-    
-    // Find max dimensions for grid sizing
-    thrust::device_ptr<const int> d_ldx1(d_lda_A);
-    thrust::device_ptr<const int> d_ldx2(d_lda_B);
-    
-    int max_ldx1 = thrust::reduce(thrust::cuda::par.on(stream), d_ldx1, d_ldx1 + batchCount, 0, thrust::maximum<int>());
-    int max_ldx2 = thrust::reduce(thrust::cuda::par.on(stream), d_ldx2, d_ldx2 + batchCount, 0, thrust::maximum<int>());
+    bool add_nugget, cudaStream_t stream, Configurations &opts,
+    int max_ldx1, int max_ldx2) {
     
     // Dispatch based on kernel type
     std::string kernel_type = opts.GetKernelType();

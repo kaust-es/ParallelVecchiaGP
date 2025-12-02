@@ -13,7 +13,6 @@
 # @author Qilong Pan
 # @date 2025-09-29
 
-# TODO: an issue when we run ./clean_build.sh and there's a change in the CMakeLists.txt file. it can't find cuda and I need to run ./configure again.
 # Set the minimum CMake version required to 3.20
 cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
 
@@ -76,6 +75,13 @@ message("---------------------------------------- MPI")
 add_definitions(-DUSE_MPI=TRUE)
 message(STATUS "Trying to find MPI")
 find_package(MPI REQUIRED)
+
+# Use MPI compiler wrapper (mpic++) for better MPI optimization
+if(MPI_CXX_COMPILER)
+    set(CMAKE_CXX_COMPILER ${MPI_CXX_COMPILER})
+    message(STATUS "Using MPI C++ compiler: ${MPI_CXX_COMPILER}")
+endif()
+
 include_directories(${MPI_INCLUDE_PATH})
 list(APPEND LIBS ${MPI_LIBRARIES})
 
@@ -133,9 +139,6 @@ add_subdirectory(src)
 add_library(${PROJECT_NAME}_INTERFACE INTERFACE)
 target_link_libraries(${PROJECT_NAME}_INTERFACE INTERFACE ${PROJECT_NAME})
 
-# Add linker options to the target
-target_link_options(${PROJECT_NAME}_INTERFACE INTERFACE "SHELL:-Wl,--whole-archive $<TARGET_FILE:${PROJECT_NAME}> -Wl,--no-whole-archive")
-
 # Add tests if enabled
 if (${BUILD_TESTS})
     message(STATUS "Building Tests")
@@ -164,4 +167,3 @@ message("\t export PKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/LAPACK/lib/pkgconfig:
 message("\t export PKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/GSL/lib/pkgconfig:$PKG_CONFIG_PATH")
 message("\t export PKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/NLOPT/lib/pkgconfig:${CMAKE_INSTALL_PREFIX}/NLOPT/lib64/pkgconfig:$PKG_CONFIG_PATH")
 message("\t ----------------------------------------------------------------------------------------------------------------------------------- \n")
-

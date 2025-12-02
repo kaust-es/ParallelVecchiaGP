@@ -696,7 +696,8 @@ void compute_covariance_vbatched(
     double **d_cov, int *d_ldda, int *d_n,
     size_t batchCount,
     int dim, const std::vector<double> &theta, double *d_range,
-    bool add_nugget, cudaStream_t stream, Configurations &opts);
+    bool add_nugget, cudaStream_t stream, Configurations &opts,
+    int max_ldx1, int max_ldx2);
 
 double norm2_batch(int *d_n, double **d_vec, int *d_ldda, size_t batchCount, cudaStream_t stream);
 double log_det_batch(int *d_n, double **d_L, int *d_ldda, size_t batchCount, cudaStream_t stream);
@@ -738,35 +739,45 @@ double performComputationOnGPU(const GpuData &gpuData, const std::vector<double>
                                gpuData.d_observations_device, 
                                gpuData.total_observations_points_size, 
                                cudaMemcpyDeviceToDevice));
-    checkCudaError(cudaMemcpy(gpuData.d_range_device, 
-                               theta.data() + range_offset, 
-                               dim * sizeof(double), 
-                               cudaMemcpyHostToDevice));
+    // Precompute 1/(range²) on CPU so GPU can multiply instead of divide!
+    {
+        std::vector<double> inv_range2_host(dim);
+        for (int i = 0; i < dim; ++i) {
+            double r = theta[range_offset + i];
+            inv_range2_host[i] = 1.0 / (r * r);
+        }
+        checkCudaError(cudaMemcpy(gpuData.d_range_device, 
+                                   inv_range2_host.data(), 
+                                   dim * sizeof(double), 
+                                   cudaMemcpyHostToDevice));
+    }
     
     // 1. Generate covariance matrices using batched operations
-    // TODO: Implement compute_covariance_vbatched in gpukernels.cu
-    // For now, this is a placeholder that will need the actual GPU kernel implementation
+    // Pass pre-computed max dimensions to avoid expensive thrust::reduce!
     compute_covariance_vbatched(gpuData.d_locs_array,
                 gpuData.d_lda_locs, 1, gpuData.total_locs_num_device,
                 gpuData.d_locs_array,
                 gpuData.d_lda_locs, 1, gpuData.total_locs_num_device,
                 gpuData.d_cov_array, gpuData.d_ldda_cov, gpuData.d_lda_locs,
                 batchCount,
-                dim, theta, gpuData.d_range_device, true, stream, aConfigurations);
+                dim, theta, gpuData.d_range_device, true, stream, aConfigurations,
+                max_n1, max_n1);  // main cov: n1 x n1
     compute_covariance_vbatched(gpuData.d_locs_neighbors_array, 
                 gpuData.d_lda_locs_neighbors, 1, gpuData.total_locs_neighbors_num_device,
                 gpuData.d_locs_array,
                 gpuData.d_lda_locs, 1, gpuData.total_locs_num_device,
                 gpuData.d_cross_cov_array, gpuData.d_ldda_cross_cov, gpuData.d_lda_locs,
                 batchCount,
-                dim, theta, gpuData.d_range_device, false, stream, aConfigurations);
+                dim, theta, gpuData.d_range_device, false, stream, aConfigurations,
+                max_m, max_n1);  // cross cov: m x n1
     compute_covariance_vbatched(gpuData.d_locs_neighbors_array,
                 gpuData.d_lda_locs_neighbors, 1, gpuData.total_locs_neighbors_num_device,
                 gpuData.d_locs_neighbors_array, 
                 gpuData.d_lda_locs_neighbors, 1, gpuData.total_locs_neighbors_num_device,
                 gpuData.d_conditioning_cov_array, gpuData.d_ldda_conditioning_cov, gpuData.d_lda_locs_neighbors,
                 batchCount,
-                dim, theta, gpuData.d_range_device, true, stream, aConfigurations);
+                dim, theta, gpuData.d_range_device, true, stream, aConfigurations,
+                max_m, max_m);  // conditioning cov: m x m
     
     // 2. Compute conditioning correction (Schur complement)
     // 2.1 Cholesky factorization of conditioning covariance
@@ -841,7 +852,6 @@ double performComputationOnGPU(const GpuData &gpuData, const std::vector<double>
         batchCount, queue);
     
     // 3.3 Compute norm and determinant
-    // TODO: Implement norm2_batch and log_det_batch in gpukernels.cu
     double norm2_item = norm2_batch(d_lda_locs, gpuData.d_observations_copy_array, d_ldda_locs, batchCount, stream);
     double log_det_item = log_det_batch(d_lda_locs, gpuData.d_cov_array, d_ldda_cov, batchCount, stream);
     
@@ -971,29 +981,9 @@ T ScaledBlockEstimator<T>::Estimate(Configurations &aConfigurations,
     }
     
     // Timing for GPU computation
-    cudaEvent_t startEv, stopEv;
-    checkCudaError(cudaEventCreate(&startEv));
-    checkCudaError(cudaEventCreate(&stopEv));
-    checkCudaError(cudaEventRecord(startEv, stream));
-    
     // Perform GPU computation
     double log_likelihood = performComputationOnGPU(gpuData, theta, aConfigurations, stream, queue);
-    
-    checkCudaError(cudaEventRecord(stopEv, stream));
-    checkCudaError(cudaEventSynchronize(stopEv));
-    float ms = 0.0f;
-    checkCudaError(cudaEventElapsedTime(&ms, startEv, stopEv));
-    checkCudaError(cudaEventDestroy(startEv));
-    checkCudaError(cudaEventDestroy(stopEv));
-    
     call_count++;
-    
-    // Store ONLY the last iteration's GPU timing (don't accumulate)
-    // This matches the old code behavior where timing represents a single evaluation
-    double gpu_time_seconds = ms / 1000.0;
-    aData->GetTimingData().gpu_total = gpu_time_seconds;
-    aData->GetTimingData().computation = gpu_time_seconds;
-    
     // Print optimization info
     if (rank == 0) {
         std::cout << "Optimization step: " << call_count << ", ";
@@ -1004,7 +994,7 @@ T ScaledBlockEstimator<T>::Estimate(Configurations &aConfigurations,
         }
         std::cout << std::endl;
     }
-    
+
     // Return log-likelihood (positive value for NLOPT maximization)
     return static_cast<T>(log_likelihood);
     

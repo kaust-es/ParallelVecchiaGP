@@ -15,6 +15,7 @@ file(GLOB ALL_KERNELS ${CMAKE_CURRENT_SOURCE_DIR}/concrete/*.cpp)
 # Add the kernel.cpp file to the list with other kernels.
 set(SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/Kernel.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/legacy_ckernel.cpp
         ${ALL_KERNELS}
         ${SOURCES}
         PARENT_SCOPE

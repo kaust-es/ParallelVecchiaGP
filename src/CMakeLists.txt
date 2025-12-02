@@ -34,6 +34,13 @@ set(LIB_NAME ${PROJECT_NAME})
 # Create the library with the specified source files and linking libraries.
 add_library(${LIB_NAME} SHARED ${SOURCES})
 
+# Set optimization flags to match faster repository
+# They use -O2 base, then -O3 for release builds
+target_compile_options(${LIB_NAME} PRIVATE
+    $<$<CONFIG:Release>:-O3>
+    $<$<CONFIG:Debug>:-O2>
+)
+
 target_compile_definitions(${LIB_NAME} PUBLIC ${COMPILE_DEFINITIONS})
 target_link_libraries(${LIB_NAME} ${LIBS})
 
