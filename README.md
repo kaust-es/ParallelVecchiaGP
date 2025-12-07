@@ -305,19 +305,8 @@ cd bin
 cmake --build . --target Example_Parallel_Vecchia_Estimation
 
 # Run example (from bin directory)
-./examples/Example_Parallel_Vecchia_Estimation \
-    --N=2000 \
-    --iTheta=1.5:0.1:0.5 \
-    --kernel=univariate_matern_stationary \
-    --conditioning_size=300 \
-    --knn \
-    --block_size=1 \
-    --seed=0 \
-    --max_mle_iterations=100 \
-    --ncores=40 \
-    --VecchiaType=parallel \
-    --permutation=random \
-    --gpus=1
+./examples/Example_Parallel_Vecchia_Estimation --N=20000 --iTheta=1.5:0.1:0.5 --kernel=univariate_matern_stationary --performance --conditioning_size=300 --knn --block_size=1 --seed=0 --max_mle_iterations=1 --ncores=40 --VecchiaType=parallel --permutation=random --gpus=1
+
 ```
 
 Or from the project root:
