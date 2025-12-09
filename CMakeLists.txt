@@ -28,6 +28,14 @@ set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
 # Project Name and Version
 project(VecchiaGP VERSION 1.0.0 LANGUAGES C CXX)
 
+# Set a default install prefix inside the build directory if not explicitly specified.
+# This avoids permission issues when trying to install to /usr/local (the CMake default).
+# Must be done AFTER project() so CMAKE_BINARY_DIR is defined.
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+    set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/deps_install" CACHE PATH "Installation prefix" FORCE)
+    message(STATUS "CMAKE_INSTALL_PREFIX not specified, defaulting to: ${CMAKE_INSTALL_PREFIX}")
+endif()
+
 # Show the current version of CMake.
 message(STATUS "CMAKE VERSION: ${CMAKE_VERSION}")
 
