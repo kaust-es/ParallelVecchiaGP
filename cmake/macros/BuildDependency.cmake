@@ -35,12 +35,24 @@ macro(BuildDependency raw_name url tag flags is_using_cmake is_using_git auto_ge
     string(TOLOWER ${raw_name} name)
     string(TOUPPER ${raw_name} capital_name)
 
+    # Determine the dependency installation path:
+    # - If CMAKE_INSTALL_PREFIX is a system path (e.g., /usr/local), use CMAKE_BINARY_DIR/_dep
+    #   This supports CPM/FetchContent integration and standard cmake workflow
+    # - Otherwise, use CMAKE_INSTALL_PREFIX (user-specified or from configure script)
+    if (CMAKE_INSTALL_PREFIX MATCHES "^/usr(/|$)")
+        set(dep_install_base ${CMAKE_BINARY_DIR}/_dep)
+        message(STATUS "Using build directory for dependencies: ${dep_install_base} (CMAKE_INSTALL_PREFIX is a system path)")
+    else()
+        set(dep_install_base ${CMAKE_INSTALL_PREFIX})
+        message(STATUS "Using install prefix for dependencies: ${dep_install_base}")
+    endif()
+
     # Log the start of the fetch process for the dependency, including its name, tag, and source URL.
     message(STATUS "Fetching ${name} ${tag} from ${url}")
     # Include the CMake module for downloading and updating content during the configure step.
     include(FetchContent)
-    # Set the base directory for fetched content to a directory within the install prefix, named after the dependency.
-    set(FETCHCONTENT_BASE_DIR ${CMAKE_INSTALL_PREFIX}/${capital_name})
+    # Set the base directory for fetched content to a directory within the dependency installation base.
+    set(FETCHCONTENT_BASE_DIR ${dep_install_base}/${capital_name})
 
     # Check if the dependency is hosted in a git repository and declare it accordingly with FetchContent, using git-specific options.
     if (${is_using_git})
@@ -59,15 +71,18 @@ macro(BuildDependency raw_name url tag flags is_using_cmake is_using_git auto_ge
     FetchContent_Populate(${name})
 
     # Set variables for the source path, binary (build) path, and installation path of the dependency.
-    set(${name}_srcpath ${CMAKE_INSTALL_PREFIX}/${capital_name}/${name}-src)
+    # FetchContent_Populate sets ${name}_SOURCE_DIR and ${name}_BINARY_DIR variables
+    # We construct the variable name explicitly to avoid expansion issues
+    set(src_dir_var "${name}_SOURCE_DIR")
+    set(${name}_srcpath ${${src_dir_var}})
     set(${name}_binpath ${${name}_srcpath}/bin)
-    set(${name}_installpath ${CMAKE_INSTALL_PREFIX}/${capital_name})
+    set(${name}_installpath ${dep_install_base}/${capital_name})
     # Ensure the binary path directory exists.
     file(MAKE_DIRECTORY ${${name}_binpath})
 
     # Configure the project. If using CMake, run cmake command with specified flags and install prefix within the binary path.
     if (${is_using_cmake})
-        execute_process(COMMAND ${CMAKE_COMMAND} -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}/${capital_name} -DCMAKE_C_FLAGS=-fPIC -DCMAKE_CXX_FLAGS=-fPIC -DCMAKE_CUDA_FLAGS=-fPIC -DCMAKE_Fortran_COMPILER=gfortran ${flags}
+        execute_process(COMMAND ${CMAKE_COMMAND} -DCMAKE_INSTALL_PREFIX=${dep_install_base}/${capital_name} -DCMAKE_C_FLAGS=-fPIC -DCMAKE_CXX_FLAGS=-fPIC -DCMAKE_CUDA_FLAGS=-fPIC -DCMAKE_Fortran_COMPILER=gfortran ${flags}
                 ${${name}_srcpath}
                 WORKING_DIRECTORY ${${name}_binpath})
     else ()
@@ -77,7 +92,7 @@ macro(BuildDependency raw_name url tag flags is_using_cmake is_using_git auto_ge
                     WORKING_DIRECTORY ${${name}_srcpath}
                     COMMAND_ERROR_IS_FATAL ANY)  # Halt on error
         endif ()
-        execute_process(COMMAND ./configure --prefix=${CMAKE_INSTALL_PREFIX}/${capital_name} ${flags}
+        execute_process(COMMAND ./configure --prefix=${dep_install_base}/${capital_name} ${flags}
                 WORKING_DIRECTORY ${${name}_srcpath}
                 COMMAND_ERROR_IS_FATAL ANY)  # Halt on error
     endif ()

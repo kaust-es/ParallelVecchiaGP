@@ -28,10 +28,15 @@
 # Define a macro named ImportDependency for handling external dependencies. The macro checks for the dependency's presence and installs it if missing.
 macro(ImportDependency name tag version url flag components is_cmake is_git auto_gen)
 
-    # Check if the installation prefix is set to a system path (like /usr/) and warn the user about potential need for administrative privileges.
-    if (CMAKE_INSTALL_PREFIX MATCHES "/usr/")
-        message(WARNING "Installation path not specified. Please set the installation path using -DCMAKE_INSTALL_PREFIX=path/to/install or execute ./config.sh. Otherwise, please note that administrative privileges may be required to install in system paths.")
-    endif ()
+    # Determine the dependency installation base path (same logic as BuildDependency):
+    # - If CMAKE_INSTALL_PREFIX is a system path, use CMAKE_BINARY_DIR/_dep
+    # - Otherwise, use CMAKE_INSTALL_PREFIX
+    if (CMAKE_INSTALL_PREFIX MATCHES "^/usr(/|$)")
+        set(dep_install_base ${CMAKE_BINARY_DIR}/_dep)
+        # Don't warn for system paths anymore since we handle it automatically
+    else()
+        set(dep_install_base ${CMAKE_INSTALL_PREFIX})
+    endif()
 
     # Convert the dependency name to uppercase for consistent messaging.
     string(TOUPPER ${name} capital_name)
@@ -51,7 +56,12 @@ macro(ImportDependency name tag version url flag components is_cmake is_git auto
         find_package(PkgConfig QUIET)
         
         # Special handling for BLAS - check if it's already installed via LAPACK
-        if(${name} STREQUAL "BLAS" AND EXISTS "${CMAKE_INSTALL_PREFIX}/_deps/LAPACK/lib/libopenblas.a")
+        # Check both new location (CMAKE_BINARY_DIR/_dep) and old location (CMAKE_INSTALL_PREFIX) for backward compatibility
+        if(${name} STREQUAL "BLAS" AND EXISTS "${CMAKE_BINARY_DIR}/_dep/LAPACK/lib/libopenblas.a")
+            set(BLAS_LIBRARIES "${CMAKE_BINARY_DIR}/_dep/LAPACK/lib/libopenblas.a")
+            set(BLAS_FOUND TRUE)
+            message("   Found ${capital_name} in LAPACK directory")
+        elseif(${name} STREQUAL "BLAS" AND EXISTS "${CMAKE_INSTALL_PREFIX}/_deps/LAPACK/lib/libopenblas.a")
             set(BLAS_LIBRARIES "${CMAKE_INSTALL_PREFIX}/_deps/LAPACK/lib/libopenblas.a")
             set(BLAS_FOUND TRUE)
             message("   Found ${capital_name} in LAPACK directory")
@@ -70,9 +80,24 @@ macro(ImportDependency name tag version url flag components is_cmake is_git auto
             
             # Special handling for BLAS - set BLAS_LIBRARIES after building
             if(${name} STREQUAL "BLAS")
-                # Check if BLAS was built in the expected locations (BuildDependency installs to ${CMAKE_INSTALL_PREFIX}/${capital_name})
+                # Check if BLAS was built in the expected locations
+                # Check new location first (CMAKE_BINARY_DIR/_dep), then old location (CMAKE_INSTALL_PREFIX) for backward compatibility
                 string(TOLOWER ${name} lower_name)
-                if(EXISTS "${CMAKE_INSTALL_PREFIX}/${capital_name}/lib/libopenblas.a")
+                if(EXISTS "${CMAKE_BINARY_DIR}/_dep/${capital_name}/lib/libopenblas.a")
+                    set(BLAS_LIBRARIES "${CMAKE_BINARY_DIR}/_dep/${capital_name}/lib/libopenblas.a")
+                    set(BLAS_FOUND TRUE)
+                    set(${name}_FOUND TRUE)
+                    include_directories("${CMAKE_BINARY_DIR}/_dep/${capital_name}/include")
+                    link_directories("${CMAKE_BINARY_DIR}/_dep/${capital_name}/lib")
+                    message(STATUS "Set BLAS_LIBRARIES after build: ${BLAS_LIBRARIES}")
+                elseif(EXISTS "${CMAKE_BINARY_DIR}/_dep/${capital_name}/lib64/libopenblas.a")
+                    set(BLAS_LIBRARIES "${CMAKE_BINARY_DIR}/_dep/${capital_name}/lib64/libopenblas.a")
+                    set(BLAS_FOUND TRUE)
+                    set(${name}_FOUND TRUE)
+                    include_directories("${CMAKE_BINARY_DIR}/_dep/${capital_name}/include")
+                    link_directories("${CMAKE_BINARY_DIR}/_dep/${capital_name}/lib64")
+                    message(STATUS "Set BLAS_LIBRARIES after build: ${BLAS_LIBRARIES}")
+                elseif(EXISTS "${CMAKE_INSTALL_PREFIX}/${capital_name}/lib/libopenblas.a")
                     set(BLAS_LIBRARIES "${CMAKE_INSTALL_PREFIX}/${capital_name}/lib/libopenblas.a")
                     set(BLAS_FOUND TRUE)
                     set(${name}_FOUND TRUE)

@@ -55,17 +55,47 @@ if (NOT PC_KBLAS_FOUND)
         CACHE PATH "Root directory of KBLAS installation"
     )
 
-    # Find headers manually
+    # Check build directory first (where dependencies are installed via BuildDependency)
+    # This takes precedence over user-specified paths
+    set(KBLAS_BUILD_DEP_DIR "${CMAKE_BINARY_DIR}/_dep/KBLAS")
+    
+    # Find headers - check build directory first, then user-specified locations
     find_path(KBLAS_INCLUDE_DIR
         NAMES kblas.h
-        PATHS ${KBLAS_ROOT}/include
+        PATHS ${KBLAS_BUILD_DEP_DIR}/include
+              ${KBLAS_ROOT}/include
+        NO_DEFAULT_PATH
     )
+    
+    # If not found in specific paths, try system paths
+    if(NOT KBLAS_INCLUDE_DIR)
+        find_path(KBLAS_INCLUDE_DIR
+            NAMES kblas.h
+            PATHS ${KBLAS_BUILD_DEP_DIR}/include
+                  ${KBLAS_ROOT}/include
+        )
+    endif()
 
-    # Find libraries manually
+    # Find libraries - check build directory first, then user-specified locations
     find_library(KBLAS_LIBRARY
         NAMES kblasgpu kblas
-        PATHS ${KBLAS_ROOT}/lib ${KBLAS_ROOT}/lib64
+        PATHS ${KBLAS_BUILD_DEP_DIR}/lib 
+              ${KBLAS_BUILD_DEP_DIR}/lib64
+              ${KBLAS_ROOT}/lib 
+              ${KBLAS_ROOT}/lib64
+        NO_DEFAULT_PATH
     )
+    
+    # If not found in specific paths, try system paths
+    if(NOT KBLAS_LIBRARY)
+        find_library(KBLAS_LIBRARY
+            NAMES kblasgpu kblas
+            PATHS ${KBLAS_BUILD_DEP_DIR}/lib 
+                  ${KBLAS_BUILD_DEP_DIR}/lib64
+                  ${KBLAS_ROOT}/lib 
+                  ${KBLAS_ROOT}/lib64
+        )
+    endif()
 
     # Compose include/libraries variables to match pkg-config interface
     set(KBLAS_INCLUDE_DIRS ${KBLAS_INCLUDE_DIR})

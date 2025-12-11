@@ -157,13 +157,22 @@ endif ()
 
 # VecchiaGP Dependence export messages for users
 # -------------------------------
+# Determine the dependency installation base path (same logic as ImportDependency):
+# - If CMAKE_INSTALL_PREFIX is a system path, use CMAKE_BINARY_DIR/_dep
+# - Otherwise, use CMAKE_INSTALL_PREFIX
+if (CMAKE_INSTALL_PREFIX MATCHES "^/usr(/|$)")
+    set(dep_install_base ${CMAKE_BINARY_DIR}/_dep)
+else()
+    set(dep_install_base ${CMAKE_INSTALL_PREFIX})
+endif()
+
 message(" \n \t ** Configurations of VecchiaGP and installation of dependence is done successfully ** ")
 message("\t - Export the following line to avoid re-install dependencies each time. -")
 message("\t ----------------------------------------------------------------------------------------------------------------------------------- ")
-message("\t export PKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/MAGMA/lib/pkgconfig:$PKG_CONFIG_PATH")
-message("\t export PKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/KBLAS/lib/pkgconfig:$PKG_CONFIG_PATH")
-message("\t export PKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/BLASPP/lib/pkgconfig:$PKG_CONFIG_PATH")
-message("\t export PKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/LAPACK/lib/pkgconfig:$PKG_CONFIG_PATH")
-message("\t export PKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/GSL/lib/pkgconfig:$PKG_CONFIG_PATH")
-message("\t export PKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/NLOPT/lib/pkgconfig:${CMAKE_INSTALL_PREFIX}/NLOPT/lib64/pkgconfig:$PKG_CONFIG_PATH")
+message("\t export PKG_CONFIG_PATH=${dep_install_base}/MAGMA/lib/pkgconfig:$PKG_CONFIG_PATH")
+message("\t export PKG_CONFIG_PATH=${dep_install_base}/KBLAS/lib/pkgconfig:$PKG_CONFIG_PATH")
+message("\t export PKG_CONFIG_PATH=${dep_install_base}/BLASPP/lib/pkgconfig:$PKG_CONFIG_PATH")
+message("\t export PKG_CONFIG_PATH=${dep_install_base}/LAPACK/lib/pkgconfig:$PKG_CONFIG_PATH")
+message("\t export PKG_CONFIG_PATH=${dep_install_base}/GSL/lib/pkgconfig:$PKG_CONFIG_PATH")
+message("\t export PKG_CONFIG_PATH=${dep_install_base}/NLOPT/lib/pkgconfig:${dep_install_base}/NLOPT/lib64/pkgconfig:$PKG_CONFIG_PATH")
 message("\t ----------------------------------------------------------------------------------------------------------------------------------- \n")
