@@ -67,6 +67,22 @@ macro(BuildDependency raw_name url tag flags is_using_cmake is_using_git auto_ge
     # Ensure the binary path directory exists.
     file(MAKE_DIRECTORY ${${name}_binpath})
 
+    # Apply patches if they exist for this dependency (check both lowercase and uppercase names)
+    file(GLOB patch_files "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/${capital_name}_*.patch")
+    foreach(patch_file ${patch_files})
+        message(STATUS "Applying patch: ${patch_file}")
+        execute_process(
+            COMMAND patch -p1 -N -i ${patch_file}
+            WORKING_DIRECTORY ${${name}_srcpath}
+            RESULT_VARIABLE patch_result
+        )
+        if(patch_result EQUAL 0)
+            message(STATUS "Patch applied successfully")
+        else()
+            message(STATUS "Patch already applied or failed (continuing anyway)")
+        endif()
+    endforeach()
+
     # Configure the project. If using CMake, run cmake command with specified flags and install prefix within the binary path.
     if (${is_using_cmake})
         execute_process(COMMAND ${CMAKE_COMMAND} -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}/${capital_name} -DCMAKE_C_FLAGS=-fPIC -DCMAKE_CXX_FLAGS=-fPIC -DCMAKE_CUDA_FLAGS=-fPIC -DCMAKE_Fortran_COMPILER=gfortran ${flags}

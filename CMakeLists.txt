@@ -21,6 +21,7 @@ cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
 option(BUILD_TESTS "Option to enable building tests" OFF)
 option(BUILD_EXAMPLES "Option to enable building examples" ON)
 option(USE_R "Enable the use of R and Rcpp in the project" OFF)
+option(USE_KBLAS "Enable KBLAS for strided batched operations (required for PARALLEL_VECCHIA_GP)" OFF)
 
 # Cmake Module Paths
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
@@ -117,7 +118,13 @@ include(ImportNLOPT)
 # VecchiaGP Linear Algebra Backends
 # -------------------------------
 include(ImportMAGMA)
-include(ImportKBLAS)
+if(USE_KBLAS)
+    include(ImportKBLAS)
+    add_definitions(-DUSE_KBLAS=TRUE)
+    message(STATUS "KBLAS enabled - PARALLEL_VECCHIA_GP will be available")
+else()
+    message(STATUS "KBLAS disabled - only Block Vecchia methods available")
+endif()
 
 # Include directories for VecchiaGB
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/inst/include)
@@ -169,7 +176,9 @@ message(" \n \t ** Configurations of VecchiaGP and installation of dependence is
 message("\t - Export the following line to avoid re-install dependencies each time. -")
 message("\t ----------------------------------------------------------------------------------------------------------------------------------- ")
 message("\t export PKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/MAGMA/lib/pkgconfig:$PKG_CONFIG_PATH")
+if(USE_KBLAS)
 message("\t export PKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/KBLAS/lib/pkgconfig:$PKG_CONFIG_PATH")
+endif()
 message("\t export PKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/BLASPP/lib/pkgconfig:$PKG_CONFIG_PATH")
 message("\t export PKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/LAPACK/lib/pkgconfig:$PKG_CONFIG_PATH")
 message("\t export PKG_CONFIG_PATH=${CMAKE_INSTALL_PREFIX}/GSL/lib/pkgconfig:$PKG_CONFIG_PATH")

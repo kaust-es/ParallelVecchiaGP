@@ -17,8 +17,9 @@ set(name "GSL")
 set(tag "v2.7.1")
 # 'version' sets "2.7.1" as the version of the GSL library, ensuring compatibility with project requirements.
 set(version "2.7.1")
-# 'flag' is available for additional configuration options during build or installation, but remains empty here.
-set(flag "")
+# 'flag' is available for additional configuration options during build or installation.
+# --disable-dependency-tracking fixes race condition during parallel configure
+set(flag "--disable-dependency-tracking")
 # 'is_cmake' indicates whether GSL uses CMake for building. It is set to OFF, implying an alternative build system is used.
 set(is_cmake OFF)
 # 'is_git' denotes if GSL's source code is hosted in a Git repository. It is set to OFF, suggesting the source is obtained from a different location.

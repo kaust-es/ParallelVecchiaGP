@@ -14,6 +14,8 @@
  * @date 2025-01-18
 **/
 
+#ifdef USE_KBLAS
+
 #include <estimators/concrete/ParallelEstimator.hpp>
 #include <hardware/VecchiaHardware.hpp>
 #include <kernels/Kernel.hpp>
@@ -543,3 +545,5 @@ T ParallelEstimator<T>::Estimate(configurations::Configurations &aConfigurations
     
     return llk;
 }
+
+#endif // USE_KBLAS

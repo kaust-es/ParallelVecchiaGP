@@ -12,20 +12,21 @@
 # Configuration settings for the integration of the NLOPT library
 # 'name' is assigned to "NLOPT", serving as the identifier for this library within the script.
 set(name "MAGMA")
-# 'tag' defines "v2.7.2" as the version tag of MAGMA, indicating the specific release to be utilized.
-set(tag "v2.7.2")
-# 'version' specifies "2.7.2" as the version of the MAGMA library, ensuring compatibility with the project's requirements.
-set(version "2.7.2")
-# 'flag' is intended for additional configuration options during the build process. A space is placed as a placeholder.
-set(flag "-DGPU_TARGET=Volta")
+# 'tag' defines the version tag of MAGMA to use.
+# Using v2.9.0 (Jan 2025) for CUDA 12+ compatibility
+set(tag "v2.9.0")
+# 'version' specifies the version of the MAGMA library.
+set(version "2.9.0")
+# 'flag' is intended for additional configuration options during the build process.
+set(flag "-DGPU_TARGET=Ampere")
 # 'is_cmake' indicates that MAGMA uses CMake for its build system, which is set to ON.
 set(is_cmake ON)
-# 'is_git' denotes that the MAGMA source code is hosted in a Git repository, which is set to ON.
+# 'is_git' - Using tarball (OFF) instead of git because git requires running 'make generate' first
 set(is_git OFF)
-# 'auto_gen' signals whether autogen scripts are required for the build process, which is set to OFF for NLOPT.
+# 'auto_gen' signals whether autogen scripts are required for the build process.
 set(auto_gen OFF)
-# 'url' provides the location of the MAGMA source code repository on GitHub.
-set(url "https://icl.cs.utk.edu/projectsfiles/magma/downloads/magma-2.7.2.tar.gz")
+ # 'url' provides the location of the MAGMA source tarball (v2.9.0 release).
+set(url "https://icl.utk.edu/projectsfiles/magma/downloads/magma-2.9.0.tar.gz")
 
 # The 'ImportDependency' macro script, located in the 'macros' directory, is included for managing the import and setup of the MAGMA library.
 include(macros/ImportDependency)
