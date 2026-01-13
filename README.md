@@ -77,13 +77,21 @@ To build and run this software, you will need:
 1. **CMake** (version 3.20 or higher) - Required for building the project
 2. **wget** - For downloading dependencies
 3. **curl** - For downloading dependencies
-4. **gcc** and **g++** compilers (C++11 or higher)
+4. **gcc** and **g++** compilers (version 10.2.0 or higher, includes OpenMP support)
 5. **autoconf** and **automake** - For building dependencies
 6. **libtool** - For building dependencies
-7. **CUDA Toolkit** - For GPU acceleration
-8. **R** (version 3.6.0 or higher) - Only if you plan on using the R functionality
-9. **Rcpp** (>= 1.0.9) - R package for C++ integration
-10. **Git** (>= 2.0.0) - For cloning the repository
+7. **CUDA Toolkit** (version 11.4 or later) - For GPU acceleration
+8. **Intel MKL** (version 2022.2.1 or later) - Provides optimized BLAS/LAPACK
+9. **MPI** (e.g., OpenMPI) - Required for distributed computing
+10. **R** (version 3.6.0 or higher) - Only if you plan on using the R functionality
+11. **Rcpp** (>= 1.0.9) - R package for C++ integration
+12. **Git** (>= 2.0.0) - For cloning the repository
+
+**Note:** The following dependencies are **automatically downloaded and built** by the configure script:
+- MAGMA (Matrix Algebra on GPU, version 2.7.0 or later)
+- GSL (GNU Scientific Library, version 2.6 or later)
+- NLopt (Nonlinear optimization library, version 2.7.1 or later)
+- KBLAS, BLASPP, LAPACK
 
 ### C++ Installation
 
@@ -95,12 +103,25 @@ To install the `Vecchia` project locally (C++ version), run the following comman
    cd ParallelVecchiaGP
    ```
 
-2. **Run the configure script** (use the `-h` flag for help to see supported options):
+2. **Run the configure script** to prepare the build environment:
    ```bash
    ./configure -e
    ```
+   
+   **What does the configure script do?**
+   - Checks for required dependencies (CMake, CUDA, GCC, etc.)
+   - Sets up CMake build configuration with appropriate flags
+   - Downloads and builds required libraries (GSL, MAGMA, NLopt, etc.) into a local `installdir/_deps/` directory
+   - Configures install paths to avoid requiring root/sudo permissions
+   
+   **Common options:**
+   - `-e`: Enable building examples (recommended for testing)
+   - `-h`: Show all available options
+   - `-r`: Enable R support
+   - `-v`: Enable verbose output
+   
    This step is **not required** when using R installation.
-   **Note:** MPI is now required and automatically enabled.
+   **Note:** MPI is required and must be installed on your system before running configure.
 
 3. **Build the project** (use the `-h` flag for help):
    ```bash
@@ -153,12 +174,7 @@ Now, you can use the pkg-config executable to collect compiler and linker flags 
 
 The installation requires **CMake** version 3.20 or higher. Ensure it is installed on your system before proceeding.
 
-**Solution**: Install CMake:
-```sh
-sudo apt install cmake
-```
-
-Or install from source if needed (the configure script can do this automatically).
+**Solution**: The configure script can automatically build CMake locally if it's not available or if the version is too old. Alternatively, you can install it manually from your package manager or from source.
 
 ### 2. Missing Libtool
 
@@ -168,12 +184,7 @@ If you encounter the following error:
 ./autogen.sh: line 20: glibtool: command not found
 ```
 
-**Solution**: Install Libtool:
-```sh
-sudo apt install libtool libtool-bin
-```
-
-Alternatively, install Libtool locally:
+**Solution**: Install Libtool locally:
 ```sh
 wget http://ftpmirror.gnu.org/libtool/libtool-2.4.7.tar.gz
 tar -xvzf libtool-2.4.7.tar.gz
@@ -205,12 +216,7 @@ export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
 
 ### 4. R Package Installation Issues
 
-If R package installation fails:
-
-**Solution**: Ensure all R dependencies are installed and R development tools are available:
-```sh
-sudo apt install r-base-dev
-```
+If R package installation fails, ensure all R dependencies are installed and R development tools are available (r-base-dev).
 
 ---
 
@@ -450,18 +456,30 @@ VecchiaGP/
 
 ## Dependencies
 
-The project automatically downloads and builds the following dependencies:
+### System Dependencies (Pre-installed Required)
 
-- **MAGMA**: Matrix Algebra on GPU and Multicore Architectures
-- **KBLAS**: Kernel BLAS library for GPU
-- **BLASPP**: C++ API for BLAS
-- **LAPACK**: Linear Algebra Package
-- **GSL**: GNU Scientific Library
-- **NLOPT**: Nonlinear optimization library
-- **GFortran**: GNU Fortran compiler
-- **CUDA**: NVIDIA CUDA Toolkit (for GPU acceleration)
+These must be installed on your system before running configure:
 
-All dependencies are installed locally in `installdir/_deps/` during the configure step.
+- **GCC/G++** (10.2.0 or later) - Provides C/C++ compiler and OpenMP support
+- **Intel MKL** (2022.2.1 or later) - Provides optimized BLAS/LAPACK implementations
+- **CUDA Toolkit** (11.4 or later) - For GPU acceleration
+- **MPI** (e.g., OpenMPI) - For distributed computing
+- **CMake** (3.20 or higher) - Build system
+- **Git** - Version control (for cloning repository)
+
+### Automatically Built Dependencies
+
+The configure script automatically downloads and builds these locally (no root access needed):
+
+- **MAGMA** (2.7.0+) - Matrix Algebra on GPU and Multicore Architectures
+- **KBLAS** - Kernel BLAS library for GPU (optional, for CUDA 11.x)
+- **BLASPP** - C++ API for BLAS
+- **LAPACK** - Linear Algebra Package
+- **GSL** (2.6+) - GNU Scientific Library
+- **NLOPT** (2.7.1+) - Nonlinear optimization library
+- **GFortran** - GNU Fortran compiler (if not available)
+
+All automatically-built dependencies are installed locally in `installdir/_deps/` during the configure step.
 
 ---
 
@@ -482,15 +500,23 @@ cmake -DBUILD_TESTS=ON ..
 
 ### Configure Script Options
 
+The `configure` script is a convenience wrapper around CMake that:
+- Automatically detects and validates system dependencies
+- Downloads and builds required libraries locally (no root access needed)
+- Sets up proper installation paths in `./installdir/_deps/`
+- Generates the build configuration in the `bin/` directory
+
 Run `./configure -h` to see all available options.
 
 Common options:
-- `-e`: Enable examples
+- `-e`: Enable building examples (recommended for testing)
 - `-r`: Enable R support
 - `-t`: Enable building tests
 - `-v`: Enable verbose output
 - `-w`: Enable showing warnings
-- `-i [path]`: Specify installation path (default: `./installdir/_deps/`)
+- `-i [path]`: Specify custom installation path (default: `./installdir/_deps/`)
+
+**Note:** The configure script handles all dependency management automatically. You do not need to manually install GSL, MAGMA, NLOPT, or other mathematical libraries - they will be downloaded and built locally.
 
 ---
 
