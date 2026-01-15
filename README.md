@@ -51,7 +51,10 @@ The approach focuses not on introducing new datasets or algorithms, but on opera
 
 ## Features
 
-- **Multiple Vecchia Types**: Supports `block`, `parallel`, and `scaled_block` Vecchia approximations
+- **Multiple Vecchia Types**: 
+  - `block` (PARALLEL_BLOCK_VECCHIA_GP) - Available by default
+  - `parallel` (PARALLEL_VECCHIA_GP) - Requires KBLAS (use `./configure -e -k`, CUDA 11.x only)
+  - `scaled_block` (PARALLEL_SCALED_BLOCK_VECCHIA_GP) - Available by default
 - **GPU Acceleration**: CUDA-based parallel implementations for high-performance computing
 - **Multiple Kernels**: Supports various covariance kernels including:
   - Univariate Matern Stationary
@@ -116,9 +119,12 @@ To install the `Vecchia` project locally (C++ version), run the following comman
    
    **Common options:**
    - `-e`: Enable building examples (recommended for testing)
+   - `-k`: Enable KBLAS support (for PARALLEL_VECCHIA_GP method, requires CUDA 11.x)
    - `-h`: Show all available options
    - `-r`: Enable R support
    - `-v`: Enable verbose output
+   
+   **Note:** By default, KBLAS is disabled. Use `-k` flag to enable PARALLEL_VECCHIA_GP method.
    
    This step is **not required** when using R installation.
    **Note:** MPI is required and must be installed on your system before running configure.
@@ -472,12 +478,14 @@ These must be installed on your system before running configure:
 The configure script automatically downloads and builds these locally (no root access needed):
 
 - **MAGMA** (2.7.0+) - Matrix Algebra on GPU and Multicore Architectures
-- **KBLAS** - Kernel BLAS library for GPU (optional, for CUDA 11.x)
+- **KBLAS** - Kernel BLAS library for GPU (only when using `-k` flag, CUDA 11.x required)
 - **BLASPP** - C++ API for BLAS
 - **LAPACK** - Linear Algebra Package
 - **GSL** (2.6+) - GNU Scientific Library
 - **NLOPT** (2.7.1+) - Nonlinear optimization library
 - **GFortran** - GNU Fortran compiler (if not available)
+
+**Note:** KBLAS is only downloaded and built when you use `./configure -e -k`. It is required for the PARALLEL_VECCHIA_GP method but is incompatible with CUDA 12+.
 
 All automatically-built dependencies are installed locally in `installdir/_deps/` during the configure step.
 
@@ -492,10 +500,11 @@ When building with CMake, you can configure:
 - `BUILD_TESTS` (OFF): Build test suite
 - `BUILD_EXAMPLES` (ON): Build example programs
 - `USE_R` (OFF): Enable R and Rcpp integration
+- `USE_KBLAS` (OFF): Enable KBLAS for PARALLEL_VECCHIA_GP method (CUDA 11.x only)
 
 Example:
 ```bash
-cmake -DBUILD_TESTS=ON ..
+cmake -DBUILD_TESTS=ON .. -DUSE_KBLAS=ON ..
 ```
 
 ### Configure Script Options
@@ -510,11 +519,16 @@ Run `./configure -h` to see all available options.
 
 Common options:
 - `-e`: Enable building examples (recommended for testing)
+- `-k`: Enable KBLAS support (required for PARALLEL_VECCHIA_GP, works with CUDA 11.x only)
 - `-r`: Enable R support
 - `-t`: Enable building tests
 - `-v`: Enable verbose output
 - `-w`: Enable showing warnings
 - `-i [path]`: Specify custom installation path (default: `./installdir/_deps/`)
+
+**Important:** KBLAS is disabled by default. If you need the PARALLEL_VECCHIA_GP method:
+- With CUDA 11.x: Use `./configure -e -k` to enable KBLAS
+- With CUDA 12.0+: KBLAS is incompatible - use PARALLEL_BLOCK_VECCHIA_GP or PARALLEL_SCALED_BLOCK_VECCHIA_GP instead
 
 **Note:** The configure script handles all dependency management automatically. You do not need to manually install GSL, MAGMA, NLOPT, or other mathematical libraries - they will be downloaded and built locally.
 
