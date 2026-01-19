@@ -11,6 +11,8 @@
  * @date 2025-09-29
 **/
 
+#ifdef USE_KBLAS
+
 #ifndef VECCHIAGP_PARALLELESTIMATOR_HPP
 #define VECCHIAGP_PARALLELESTIMATOR_HPP
 
@@ -57,3 +59,5 @@ namespace vecchia::estimators {
 }//namespace vecchia
 
 #endif //VECCHIAGP_PARALLELESTIMATOR_HPP
+
+#endif // USE_KBLAS

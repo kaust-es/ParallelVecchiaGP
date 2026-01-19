@@ -36,9 +36,11 @@ int VecchiaHardware::mOMPThreads = 1;
 bool VecchiaHardware::mIsInitialized = false;
 // MAGMA
 magma_queue_t VecchiaHardware::mQueues[3] = {NULL, NULL, NULL};
+#ifdef USE_KBLAS
 // KBLAS
 kblasHandle_t* VecchiaHardware::mKblasHandles = nullptr;
 int VecchiaHardware::mNumKblasHandles = 0;
+#endif
 // MPI
 bool VecchiaHardware::mIsMPIInit = false;
 int VecchiaHardware::mMPIRank = 0;
@@ -65,12 +67,14 @@ VecchiaHardware::VecchiaHardware(const VecchiaType &aVecchiaType,
     // Conditional initialization based on Vecchia type
     switch (aVecchiaType) {
         
+#ifdef USE_KBLAS
         case VecchiaType::PARALLEL_VECCHIA_GP:
             // Scalar Vecchia: KBLAS + MAGMA (MAGMA for memory management, KBLAS for computations)
             LOGGER("   Backend: KBLAS + MAGMA")
             InitMAGMA(aGpuNumber);  // Initialize MAGMA first for memory management
             InitKBLAS(aGpuNumber);  // Then initialize KBLAS for strided batched operations
             break;
+#endif
             
         case VecchiaType::PARALLEL_BLOCK_VECCHIA_GP:
             // Block Vecchia: MAGMA only
@@ -97,6 +101,7 @@ VecchiaHardware::VecchiaHardware(const VecchiaType &aVecchiaType,
 
 // ========== Initialization Methods ==========
 
+#ifdef USE_KBLAS
 void VecchiaHardware::InitKBLAS(const int &aGpuNumber) {
     mNumKblasHandles = aGpuNumber;
     mKblasHandles = new kblasHandle_t[aGpuNumber];
@@ -115,6 +120,7 @@ void VecchiaHardware::InitKBLAS(const int &aGpuNumber) {
     
     LOGGER("   KBLAS: Initialized " + std::to_string(aGpuNumber) + " handle(s)")
 }
+#endif // USE_KBLAS
 
 void VecchiaHardware::InitMAGMA(const int &aGpuNumber) {
     // Initialize MAGMA library
@@ -275,6 +281,7 @@ void VecchiaHardware::InitHardware(const VecchiaType &aVecchiaType,
 
 // ========== Finalization Methods ==========
 
+#ifdef USE_KBLAS
 void VecchiaHardware::FinalizeKBLAS() {
     if (mKblasHandles != nullptr) {
         for (int g = 0; g < mNumKblasHandles; g++) {
@@ -287,6 +294,7 @@ void VecchiaHardware::FinalizeKBLAS() {
         LOGGER("   KBLAS: Finalized")
     }
 }
+#endif // USE_KBLAS
 
 void VecchiaHardware::FinalizeMAGMA() {
     // Destroy MAGMA queues
@@ -372,10 +380,12 @@ void VecchiaHardware::FinalizeHardware() {
         FinalizeMAGMA();
     }
     
+#ifdef USE_KBLAS
     // Finalize KBLAS if handles were created
     if (mKblasHandles != nullptr) {
         FinalizeKBLAS();
     }
+#endif
     
     // Remove hardware initialization from communicator
     CommunicatorMPI::GetInstance()->RemoveHardwareInitialization();
@@ -392,6 +402,7 @@ VecchiaHardware::~VecchiaHardware() {
 
 // ========== Accessor Methods ==========
 
+#ifdef USE_KBLAS
 kblasHandle_t VecchiaHardware::GetKblasHandle(int aGpuId) {
     if (mKblasHandles == nullptr || aGpuId >= mNumKblasHandles) {
         throw std::runtime_error("KBLAS handle not initialized for GPU " + 
@@ -399,3 +410,4 @@ kblasHandle_t VecchiaHardware::GetKblasHandle(int aGpuId) {
     }
     return mKblasHandles[aGpuId];
 }
+#endif // USE_KBLAS

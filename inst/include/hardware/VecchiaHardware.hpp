@@ -21,7 +21,9 @@
 
 #include <magma_v2.h>
 #include <cuComplex.h>
+#ifdef USE_KBLAS
 #include <kblas.h>
+#endif
 
 #include <common/Definitions.hpp>
 
@@ -89,6 +91,7 @@ public:
      */
     static magma_queue_t GetQueue2() { return mQueues[1]; }
     
+#ifdef USE_KBLAS
     // ========== KBLAS Methods (for Parallel/Scalar) ==========
     
     /**
@@ -103,6 +106,7 @@ public:
      * @return Number of handles
      */
     static int GetNumKblasHandles() { return mNumKblasHandles; }
+#endif // USE_KBLAS
 
     // ========== MPI Methods (for Scaled Block only) ==========
     
@@ -133,11 +137,13 @@ public:
 private:
     // ========== Initialization Helpers ==========
     
+#ifdef USE_KBLAS
     /**
      * @brief Initialize KBLAS handles and GPU context
      * @param[in] aGpuNumber Number of GPUs to use
      */
     void InitKBLAS(const int &aGpuNumber);
+#endif
     
     /**
      * @brief Initialize MAGMA queues and GPU context
@@ -150,10 +156,12 @@ private:
      */
     void InitMPI();
     
+#ifdef USE_KBLAS
     /**
      * @brief Finalize KBLAS resources
      */
     void FinalizeKBLAS();
+#endif
     
     /**
      * @brief Finalize MAGMA resources
@@ -174,9 +182,11 @@ private:
     // MAGMA (for Block & Scaled Block)
     static magma_queue_t mQueues[3];  // 2 queues + NULL sentinel
     
+#ifdef USE_KBLAS
     // KBLAS (for Parallel/Scalar)
     static kblasHandle_t* mKblasHandles;  // Array of handles (multi-GPU)
     static int mNumKblasHandles;
+#endif
     
     // MPI (for Scaled Block only)
     static bool mIsMPIInit;

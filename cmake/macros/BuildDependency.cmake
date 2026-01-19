@@ -39,8 +39,9 @@ macro(BuildDependency raw_name url tag flags is_using_cmake is_using_git auto_ge
     message(STATUS "Fetching ${name} ${tag} from ${url}")
     # Include the CMake module for downloading and updating content during the configure step.
     include(FetchContent)
-    # Set the base directory for fetched content to a directory within the install prefix, named after the dependency.
-    set(FETCHCONTENT_BASE_DIR ${CMAKE_INSTALL_PREFIX}/${capital_name})
+    # Set the base directory for fetched content to a directory within the build directory, named after the dependency.
+    # This avoids requiring write permissions to CMAKE_INSTALL_PREFIX during the configure step.
+    set(FETCHCONTENT_BASE_DIR ${CMAKE_BINARY_DIR}/_deps/${capital_name})
 
     # Check if the dependency is hosted in a git repository and declare it accordingly with FetchContent, using git-specific options.
     if (${is_using_git})
@@ -59,11 +60,28 @@ macro(BuildDependency raw_name url tag flags is_using_cmake is_using_git auto_ge
     FetchContent_Populate(${name})
 
     # Set variables for the source path, binary (build) path, and installation path of the dependency.
-    set(${name}_srcpath ${CMAKE_INSTALL_PREFIX}/${capital_name}/${name}-src)
+    # FetchContent_Populate sets ${name}_SOURCE_DIR based on FETCHCONTENT_BASE_DIR
+    set(${name}_srcpath ${${name}_SOURCE_DIR})
     set(${name}_binpath ${${name}_srcpath}/bin)
     set(${name}_installpath ${CMAKE_INSTALL_PREFIX}/${capital_name})
     # Ensure the binary path directory exists.
     file(MAKE_DIRECTORY ${${name}_binpath})
+
+    # Apply patches if they exist for this dependency (check both lowercase and uppercase names)
+    file(GLOB patch_files "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/${capital_name}_*.patch")
+    foreach(patch_file ${patch_files})
+        message(STATUS "Applying patch: ${patch_file}")
+        execute_process(
+            COMMAND patch -p1 -N -i ${patch_file}
+            WORKING_DIRECTORY ${${name}_srcpath}
+            RESULT_VARIABLE patch_result
+        )
+        if(patch_result EQUAL 0)
+            message(STATUS "Patch applied successfully")
+        else()
+            message(STATUS "Patch already applied or failed (continuing anyway)")
+        endif()
+    endforeach()
 
     # Configure the project. If using CMake, run cmake command with specified flags and install prefix within the binary path.
     if (${is_using_cmake})
