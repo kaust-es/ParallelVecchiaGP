@@ -158,7 +158,7 @@ void Configurations::InitializeArguments(const int &aArgC, char **apArgV, const 
                 ParseVerbose(argument_value);
             } else if (argument_name == "--conditioning_size") {
                 SetConditioningSize(CheckNumericalValue(argument_value));
-            } else if (argument_name == "--block_size") {
+            } else if (argument_name == "--block_count") {
                 SetBlockSize(CheckNumericalValue(argument_value));
             } else if (argument_name == "--tolerance") {
                 SetTolerance(CheckNumericalValue(argument_value));
@@ -276,7 +276,7 @@ void Configurations::PrintUsage() {
     LOGGER("--N=value : [int] The number of locations, e.g., 2000")
     LOGGER("--itheta=value : The initial values of parameters in kernel, sigma^2:range:smooth, e.g., 1.5:0.1:0.5")
     LOGGER("--kernel=value : The name of kernels, such as matern kernel, e.g., univariate_matern_stationary")
-    LOGGER("--block_size=value : [int] The block count in Vecchia method (number of clusters), e.g., 300")
+    LOGGER("--block_count=value : [int] Number of blocks in Vecchia method (number of clusters) e.g., 300")
     LOGGER("--conditioning_size=value : [int] The conditioning size in Vecchia method, e.g., 1500")
     LOGGER("--knn : nearest neighbors searching, default to use.")
     LOGGER("--performance : Only calculate the one iteraion of block/classic Vecchia and obs=0.")

@@ -17,7 +17,7 @@
 model_data(vecchia_type = "block", kernel = "univariate_matern_stationary",
 distance_matrix = "euclidean", lb = c(0.01, 0.01, 0.01),
 ub = c(3.0, 3.0, 3.0), tol = 4.0, mle_itr = 100,
-block_size = 200, dimension = "2D", data = NULL, matrix = NULL,
+block_count = 200, dimension = "2D", data = NULL, matrix = NULL,
 x = NULL, y = NULL, initial_theta = NULL, distance_scale = NULL,
 nn_multiplier = NULL, conditioning_size = NULL, ncores = NULL,
 permutation = NULL, kernel_type = NULL, seed = NULL)
@@ -54,7 +54,7 @@ permutation = NULL, kernel_type = NULL, seed = NULL)
   \item{ub}{A numeric vector represents the upper bound for the computation.}
   \item{tol}{A numeric value specifies the tolerance for the computation. The final value is computed as 10^(-tol). Default is 4.0.}
   \item{mle_itr}{A numeric value specifies the maximum number of iterations for the computation. Default is 100.}
-  \item{block_size}{A numeric value represents the block size for block Vecchia. Default is 200.}
+  \item{block_count}{A numeric value representing the number of blocks for block vecchia. Default is 200.}
   \item{dimension}{A string specifies the data dimension. For scaled_block, can be an integer string (e.g., "8") or one of "2D", "3D", or "ST". For other types, must be "2D", "3D", or "ST". Default is "2D".}
   \item{data}{A list of data vectors from load_data. Default is NULL.}
   \item{matrix}{A numeric vector of measurements. Default is NULL.}
@@ -88,7 +88,7 @@ dimension <- "2D"
 problem_size <- 1000
 
 data_result <- load_data(vecchia_type=vecchia_type, kernel=kernel,
-problem_size=problem_size, seed=123, block_size=200, dimension=dimension)
+problem_size=problem_size, seed=123, block_count=200, dimension=dimension)
 
 theta <- model_data(vecchia_type=vecchia_type, kernel=kernel,
 lb=lower_bound, ub=upper_bound, tol=4.0, mle_itr=100,

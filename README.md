@@ -232,7 +232,7 @@ data_result <- load_data(
     initial_theta = c(1.5, 0.1, 0.5),  # variance, range, smoothness
     problem_size = 2000,
     seed = 0,
-    block_size = 1,
+    block_count = 1,  # Number of blocks (1 for parallel Vecchia)
     dimension = "2D",
     conditioning_size = 300,
     ncores = 40,
@@ -276,7 +276,7 @@ data_result <- load_data(
     initial_theta = c(1.5, 0.1, 0.5),
     data_path = "./data/my_data.csv",
     dimension = "2D",
-    block_size = 200,
+    block_count = 200,  # Number of blocks
     conditioning_size = 300
 )
 
@@ -289,7 +289,7 @@ predicted_values <- predict_data(
     test_data = "./data/test_data.csv",
     train_locs = "./data/train_locs.csv",
     test_locs = "./data/test_locs.csv",
-    block_size = 200,
+    block_count = 200,  # Number of blocks
     conditioning_size = 300,
     ncores = 20
 )
@@ -305,7 +305,7 @@ cd bin
 cmake --build . --target Example_Parallel_Vecchia_Estimation
 
 # Run example (from bin directory)
-./examples/Example_Parallel_Vecchia_Estimation --N=20000 --iTheta=1.5:0.1:0.5 --kernel=univariate_matern_stationary --performance --conditioning_size=300 --knn --block_size=1 --seed=0 --max_mle_iterations=1 --ncores=40 --VecchiaType=parallel --permutation=random --gpus=1
+./examples/Example_Parallel_Vecchia_Estimation --N=20000 --iTheta=1.5:0.1:0.5 --kernel=univariate_matern_stationary --performance --conditioning_size=300 --knn --block_count=1 --seed=0 --max_mle_iterations=1 --ncores=40 --VecchiaType=parallel --permutation=random --gpus=1
 
 ```
 
@@ -336,7 +336,7 @@ Load or generate data for Vecchia approximation.
 - `distance_matrix` (string): Distance metric - `"euclidean"` (default)
 - `problem_size` (integer): Number of data points (default: 2000)
 - `seed` (integer): Random seed for reproducibility (default: 123)
-- `block_size` (integer): Block size for block Vecchia (default: 200)
+- `block_count` (integer): Number of blocks for block Vecchia (default: 200).
 - `dimension` (string): Spatial dimension - `"2D"`, `"3D"`, or `"8"` (for scaled_block)
 - `data_path` (string): Path to CSV file with external data (empty string for synthetic data)
 - `distance_scale` (numeric vector, optional): Distance scaling factors for scaled_block
@@ -364,7 +364,7 @@ Estimate parameters using Maximum Likelihood Estimation (MLE).
 - `ub` (numeric vector): Upper bounds for optimization
 - `tol` (numeric): Tolerance exponent (e.g., 6 means 1e-6)
 - `mle_itr` (integer): Maximum MLE iterations (default: 100)
-- `block_size` (integer): Block size
+- `block_count` (integer): Number of blocks
 - `dimension` (string): Spatial dimension
 - `data` (list or NULL): Data result from `load_data()` or NULL
 - `matrix` (numeric vector, optional): Pre-computed covariance matrix
@@ -391,7 +391,7 @@ Perform prediction at new locations.
 - `kernel` (string): Covariance kernel type
 - `distance_matrix` (string): Distance metric
 - `estimated_theta` (numeric vector): Estimated parameters from `model_data()`
-- `block_size` (integer): Block size
+- `block_count` (integer): Number of blocks
 - `dimension` (string): Spatial dimension
 - `train_data` (list or string): Training data from `load_data()` or file path
 - `test_data` (string or NULL): Test data file path or NULL

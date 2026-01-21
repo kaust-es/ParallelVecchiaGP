@@ -5,7 +5,7 @@
 #   --performance 
 #   --conditioning_size=300 
 #   --knn 
-#   --block_size=1 
+#   --block_count=1 
 #   --seed=0 
 #   --max_mle_iterations=1 
 #   --ncores=40 
@@ -25,7 +25,7 @@ cat("Replicating C++ command with all parameters\n\n")
 cat("Step 1: Loading data with parallel Vecchia...\n")
 cat("Parameters:\n")
 cat("  --N=2000\n")
-cat("  --block_size=1\n")
+cat("  --block_count=1\n")
 cat("  --iTheta=1.5:0.1:0.5\n")
 cat("  --kernel=univariate_matern_stationary\n")
 cat("  --seed=0\n")
@@ -45,7 +45,7 @@ data_result <- load_data(
     distance_matrix = "euclidean",             # Default distance metric
     problem_size = 2000,                       # --N=2000
     seed = 0,                                   # --seed=0
-    block_size = 1,                            # --block_size=1
+    block_count = 1,                           # --block_count=1 (number of blocks)
     dimension = "2D",                          # For parallel Vecchia, use "2D" or "3D"
     data_path = "",                            # Empty means generate new data
     conditioning_size = 300,                   # --conditioning_size=300
@@ -82,7 +82,7 @@ model_result <- model_data(
     ub = c(3.0, 3.0, 3.0),                     # Upper bounds (variance, range, smoothness) - matches C++ defaults
     tol = 6,                                    # --tolerance=6 (exponent, means 1e-6)
     mle_itr = 1,                               # --max_mle_iterations=1
-    block_size = 1,                            # --block_size=1
+    block_count = 1,                           # --block_count=1 (number of blocks)
     dimension = "2D",                          # For parallel Vecchia, use "2D" or "3D"
     data = data_result,                        # Pass data_result to reuse VecchiaGBData and hardware from load_data
     initial_theta = c(1.5, 0.1, 0.5),          # --iTheta=1.5:0.1:0.5
