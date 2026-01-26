@@ -94,7 +94,7 @@ source ~/.bashrc
 Test the installation by running an example:
 
 ```bash
-./bin/examples/Example_Parallel_Vecchia_Estimation --N=2000 --iTheta=1.5:0.1:0.5 --kernel=univariate_matern_stationary --performance --conditioning_size=300 --knn --block_size=1 --seed=0 --max_mle_iterations=1 --ncores=40 --VecchiaType=parallel --permutation=random --gpus=1
+./bin/examples/Example_Parallel_Vecchia_Estimation --N=2000 --iTheta=1.5:0.1:0.5 --kernel=univariate_matern_stationary --performance --conditioning_size=300 --knn --block_count=1 --seed=0 --max_mle_iterations=1 --ncores=40 --VecchiaType=parallel --permutation=random --gpus=1
 ```
 
 ### R Package Installation
@@ -172,7 +172,7 @@ data_result <- load_data(
     initial_theta = c(1.5, 0.1, 0.5),  # variance, range, smoothness
     problem_size = 2000,
     seed = 0,
-    block_size = 1,
+    block_count = 1,  # Number of blocks (1 for parallel Vecchia)
     dimension = "2D",
     conditioning_size = 300,
     ncores = 40,
@@ -210,7 +210,7 @@ cat("Estimated theta:", model_result$estimated_theta, "\n")
     --VecchiaType=parallel \
     --seed=0 \
     --conditioning_size=300 \
-    --block_size=1 \
+    --block_count=1 \
     --ncores=40 \
     --permutation=random \
     --gpus=1 \
@@ -230,7 +230,7 @@ data_result <- load_data(
     initial_theta = c(1.5, 0.1, 0.5),
     problem_size = 2000,
     seed = 0,
-    block_size = 1,
+    block_count = 1,  # Number of blocks (1 for parallel Vecchia)
     dimension = "2D",
     conditioning_size = 300,
     ncores = 40,
@@ -283,7 +283,7 @@ data_result <- load_data(
     initial_theta = c(1.5, 0.1, 0.5),
     problem_size = 2000,
     seed = 0,
-    block_size = 200,  # Number of clusters
+    block_count = 200,  # Number of blocks
     dimension = "2D",
     conditioning_size = 300,
     ncores = 40,
@@ -301,7 +301,7 @@ model_result <- model_data(
     ub = c(3.0, 3.0, 3.0),
     tol = 6,
     mle_itr = 100,
-    block_size = 200,
+    block_count = 200,  # Number of blocks
     dimension = "2D",
     conditioning_size = 300,
     ncores = 40,
@@ -331,7 +331,7 @@ data_result <- load_data(
     initial_theta = c(1.5, 0.1, 0.5),
     problem_size = 50,
     seed = 1,
-    block_size = 200,
+    block_count = 200,  # Number of blocks
     dimension = "2D",
     conditioning_size = 300,
     ncores = 20,
@@ -346,7 +346,7 @@ predicted_values <- predict_data(
     vecchia_type = "block",
     kernel = "univariate_matern_stationary",
     estimated_theta = prediction_theta,
-    block_size = 200,
+    block_count = 200,  # Number of blocks
     dimension = "2D",
     train_data = train_data_file,
     test_data = test_data_file,
@@ -366,13 +366,13 @@ cat("Number of predictions:", length(predicted_values), "\n")
 #### Example 3: estimation (C++)
 
 ```bash
-./bin/examples/Example_Parallel_Vecchia_Estimation --N=2000 --iTheta=1.5:0.1:0.5 --kernel=univariate_matern_stationary --performance --conditioning_size=300 --knn --block_size=1 --seed=0 --max_mle_iterations=1 --ncores=40 --VecchiaType=block --permutation=random --gpus=0
+./bin/examples/Example_Parallel_Vecchia_Estimation --N=2000 --iTheta=1.5:0.1:0.5 --kernel=univariate_matern_stationary --performance --conditioning_size=300 --knn --block_count=1 --seed=0 --max_mle_iterations=1 --ncores=40 --VecchiaType=block --permutation=random --gpus=0
 ```
 
 #### Example 4: prediction (C++)
 
 ```bash
-./bin/examples/Example_Parallel_Vecchia_Estimation_Prediction  --train_locs=$train_locs --test_locs=$test_locs --train_data=$train_data --test_data=$test_data --N=50 --itheta=${sigma_str},${beta_str},${nu_str} --kernel=UnivariateMaternStationary --conditioning_size=$m --knn --block_size=$k --seed=$i --max_mle_iterations=1 --cores=20 --vecchiaType=block --permutation=random --gpus=0 --dim=3 --distance_metric=eg --scale_factor=1.0 --conditional_sim=1000 --kmeans_max_iter=50
+./bin/examples/Example_Parallel_Vecchia_Estimation_Prediction  --train_locs=$train_locs --test_locs=$test_locs --train_data=$train_data --test_data=$test_data --N=50 --itheta=${sigma_str},${beta_str},${nu_str} --kernel=UnivariateMaternStationary --conditioning_size=$m --knn --block_count=$k --seed=$i --max_mle_iterations=1 --cores=20 --vecchiaType=block --permutation=random --gpus=0 --dim=3 --distance_metric=eg --scale_factor=1.0 --conditional_sim=1000 --kmeans_max_iter=50
 ```
 
 ### Scaled Block Vecchia
@@ -389,7 +389,7 @@ data_result <- load_data(
     initial_theta = c(1.0, 0.001),  # variance, nugget (for Matern72)
     problem_size = 1000,
     seed = 0,
-    block_size = 100,
+    block_count = 100,  # Number of blocks
     dimension = "8",  # 8-dimensional data
     distance_scale = c(0.05, 0.05, 0.1, 1.0, 1.0, 1.0, 1.0, 1.0),  # Per-dimension scaling
     nn_multiplier = 500,
@@ -411,7 +411,7 @@ model_result <- model_data(
     ub = c(10, 0.01, 0.5, 0.5, 1, 10, 10, 10, 10, 10),  # 10 values
     tol = 6,
     mle_itr = 50,
-    block_size = 100,
+    block_count = 100,  # Number of blocks
     dimension = "8",
     distance_scale = c(0.05, 0.05, 0.1, 1.0, 1.0, 1.0, 1.0, 1.0),
     nn_multiplier = 500,
@@ -430,7 +430,7 @@ predicted_values <- predict_data(
     vecchia_type = "scaled_block",
     kernel = "univariate_matern_stationary",
     estimated_theta = model_result$estimated_theta,
-    block_size = 100,
+    block_count = 100,  # Number of blocks
     dimension = "8",
     train_data = data_result,
     distance_scale = c(0.05, 0.05, 0.1, 1.0, 1.0, 1.0, 1.0, 1.0),
@@ -448,7 +448,7 @@ cat("Number of predictions:", length(predicted_values), "\n")
 #### Example 2: Full Workflow with MPI (C++)
 
 ```bash
-mpirun -n 2 ./bin/examples/Example_Parallel_Vecchia_Estimation_Prediction --N=1000 --block_size=100 --distance_scale=0.05:0.05:0.1:1.0:1.0:1.0:1.0:1.0 --nn_multiplier=500 --iTheta=1.0:0.001 --kernel=univariate_matern_stationary --seed=0 --max_mle_iterations=1 --ncores=40 --VecchiaType=scaled_block --permutation=morton --gpus=0 --dim=8 --ncores=20 --kernel_type=Matern72 --conditioning_size=200 --tolerance=6
+mpirun -n 2 ./bin/examples/Example_Parallel_Vecchia_Estimation_Prediction --N=1000 --block_count=100 --distance_scale=0.05:0.05:0.1:1.0:1.0:1.0:1.0:1.0 --nn_multiplier=500 --iTheta=1.0:0.001 --kernel=univariate_matern_stationary --seed=0 --max_mle_iterations=1 --ncores=40 --VecchiaType=scaled_block --permutation=morton --gpus=0 --dim=8 --ncores=20 --kernel_type=Matern72 --conditioning_size=200 --tolerance=6
 ```
 
 **Key Points for Scaled Block Vecchia:**
@@ -497,13 +497,14 @@ mpirun -n 2 ./bin/examples/Example_Parallel_Vecchia_Estimation_Prediction --N=10
 - **Example:** `--seed=42`
 - **Default:** Current time (non-reproducible)
 
-#### `--block_size`
+#### `--block_count`
 - **Type:** Integer
 - **Description:** 
   - **Parallel Vecchia:** Usually 1
-  - **Block Vecchia:** Number of clusters (e.g., 200)
+  - **Block Vecchia:** Number of blocks (e.g., 200)
   - **Scaled Block Vecchia:** Number of blocks (e.g., 10000)
-- **Example:** `--block_size=200`
+- **Example:** `--block_count=200`
+- **Note:** `--block_size` is deprecated but still supported for backward compatibility
 
 #### `--conditioning_size`
 - **Type:** Integer
@@ -716,7 +717,7 @@ mpirun -n 2 ./bin/examples/Example_Parallel_Vecchia_Estimation_Prediction --N=10
 **Optional:**
 - `problem_size`: Integer (default: 2000)
 - `seed`: Integer (default: 123)
-- `block_size`: Integer (default: 200)
+- `block_count`: Integer (default: 200)
 - `dimension`: String `"2D"`, `"3D"`, or integer as string `"8"` for scaled_block
 - `data_path`: String (empty for synthetic data)
 - `distance_scale`: Numeric vector (for scaled_block)
