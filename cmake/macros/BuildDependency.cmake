@@ -83,6 +83,13 @@ macro(BuildDependency raw_name url tag flags is_using_cmake is_using_git auto_ge
         endif()
     endforeach()
 
+    # Optional pre-build hook (if defined by caller)
+    if(${capital_name} STREQUAL "MAGMA")
+        if(COMMAND MAGMA_PreBuild)
+            MAGMA_PreBuild(${${name}_srcpath} "${flags}")
+        endif()
+    endif()
+
     # Configure the project. If using CMake, run cmake command with specified flags and install prefix within the binary path.
     if (${is_using_cmake})
         execute_process(COMMAND ${CMAKE_COMMAND} -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}/${capital_name} -DCMAKE_C_FLAGS=-fPIC -DCMAKE_CXX_FLAGS=-fPIC -DCMAKE_CUDA_FLAGS=-fPIC -DCMAKE_Fortran_COMPILER=gfortran ${flags}
@@ -120,6 +127,13 @@ macro(BuildDependency raw_name url tag flags is_using_cmake is_using_git auto_ge
                 WORKING_DIRECTORY ${${name}_srcpath}
                 COMMAND_ERROR_IS_FATAL ANY)  # Halt on error
     endif ()
+
+    # Optional post-build hook (if defined by caller)
+    if(${capital_name} STREQUAL "MAGMA")
+        if(COMMAND MAGMA_PostBuild)
+            MAGMA_PostBuild(${${name}_installpath} "${tag}")
+        endif()
+    endif()
 
     # Set environment variables for dynamic and static linking as well as include paths, pointing to the dependency's installation directory.
     set(ENV{LD_LIBRARY_PATH} "${${name}_installpath}/lib:${${name}_installpath}/lib64:$ENV{LD_LIBRARY_PATH}")
