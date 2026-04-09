@@ -16,7 +16,7 @@
 \usage{
 predict_data(vecchia_type = "block", kernel = "univariate_matern_stationary",
 distance_matrix = "euclidean", estimated_theta = c(1.0, 0.5, 0.1),
-block_size = 200, dimension = "2D", train_data = NULL,
+block_count = 200, dimension = "2D", train_data = NULL,
 test_data = NULL, train_locs = NULL, test_locs = NULL,
 distance_scale = NULL, nn_multiplier = NULL,
 conditioning_size = NULL, ncores = NULL, permutation = NULL,
@@ -50,7 +50,7 @@ kernel_type = NULL, seed = NULL, problem_size = NULL)
   }
   \item{distance_matrix}{A string specifies the distance metric, either "euclidean" or "great_circle". Default is "euclidean".}
   \item{estimated_theta}{A numeric vector contains the estimated theta parameters.}
-  \item{block_size}{A numeric value represents the block size for block Vecchia. Default is 200.}
+  \item{block_count}{A numeric value representing the number of blocks for block Vecchia. Default is 200.}
   \item{dimension}{A string specifies the data dimension. For scaled_block, can be an integer string (e.g., "8") or one of "2D", "3D", or "ST". For other types, must be "2D", "3D", or "ST". Default is "2D".}
   \item{train_data}{A list contains the locations and measurements for training, or a file path string if train_locs is provided. Default is NULL.}
   \item{test_data}{A list contains the locations for testing, or a file path string if test_locs is provided. Default is NULL.}
@@ -82,7 +82,7 @@ estimated_theta <- c(1.0, 0.5, 0.1)
 dimension <- "2D"
 
 data_result <- load_data(vecchia_type=vecchia_type, kernel=kernel,
-problem_size=1000, seed=123, block_size=200, dimension=dimension)
+problem_size=1000, seed=123, block_count=200, dimension=dimension)
 
 model_result <- model_data(vecchia_type=vecchia_type, kernel=kernel,
 data=data_result, lb=c(0.01, 0.01, 0.01), ub=c(3.0, 3.0, 3.0))

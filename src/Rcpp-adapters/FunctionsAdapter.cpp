@@ -681,11 +681,14 @@ R_VecchiaModelData(const std::string &vecchia_type, const std::string &kernel,
             if (VecchiaHardware::GetQueue() != nullptr) {
                 hardware_already_initialized = true;
             }
-        } else if (config.GetVecchiaType() == vecchia::common::PARALLEL_VECCHIA_GP) {
+        }
+#ifdef USE_KBLAS
+        else if (config.GetVecchiaType() == vecchia::common::PARALLEL_VECCHIA_GP) {
             if (VecchiaHardware::GetNumKblasHandles() > 0) {
                 hardware_already_initialized = true;
             }
         }
+#endif
         
         if (!data_already_loaded || !hardware_ptr_valid) {
             if (!hardware_already_initialized) {
@@ -913,11 +916,14 @@ R_VecchiaPredictData(const std::string &vecchia_type, const std::string &kernel,
             if (VecchiaHardware::GetQueue() != nullptr) {
                 hardware_already_initialized = true;
             }
-        } else if (config.GetVecchiaType() == vecchia::common::PARALLEL_VECCHIA_GP) {
+        }
+#ifdef USE_KBLAS
+        else if (config.GetVecchiaType() == vecchia::common::PARALLEL_VECCHIA_GP) {
             if (VecchiaHardware::GetNumKblasHandles() > 0) {
                 hardware_already_initialized = true;
             }
         }
+#endif
         
         if (!data_already_loaded || !hardware_ptr_valid) {
             if (!hardware_already_initialized) {

@@ -14,7 +14,9 @@
 **/
 
 #include <estimators/EstimatorFactory.hpp>
+#ifdef USE_KBLAS
 #include <estimators/concrete/ParallelEstimator.hpp>
+#endif
 #include <estimators/concrete/ParallelBlockEstimator.hpp>
 #include <estimators/concrete/ScaledBlockEstimator.hpp>
 
@@ -25,11 +27,14 @@ template<typename T>
 std::unique_ptr<EstimatorFactory<T>> EstimatorFactory<T>::CreateEstimator(VecchiaType aVecchiaType) {
 
     // Check the used Linear Algebra solver library and method type
+#ifdef USE_KBLAS
     if (aVecchiaType == PARALLEL_VECCHIA_GP) {
         // Scalar Vecchia with KBLAS
         return std::make_unique<ParallelEstimator<T>>();
     }
-    else if (aVecchiaType == PARALLEL_BLOCK_VECCHIA_GP) {
+    else
+#endif
+    if (aVecchiaType == PARALLEL_BLOCK_VECCHIA_GP) {
         // Block Vecchia with MAGMA
         return std::make_unique<ParallelBlockEstimator<T>>();
     } 
@@ -37,5 +42,10 @@ std::unique_ptr<EstimatorFactory<T>> EstimatorFactory<T>::CreateEstimator(Vecchi
         // Scaled Block Vecchia with MAGMA+MPI
         return std::make_unique<ScaledBlockEstimator<T>>();
     }
+#ifndef USE_KBLAS
+    if (aVecchiaType == PARALLEL_VECCHIA_GP) {
+        throw std::runtime_error("PARALLEL_VECCHIA_GP requires KBLAS. Rebuild with -DUSE_KBLAS=ON");
+    }
+#endif
     throw std::runtime_error("Invalid Vecchia type");
 }

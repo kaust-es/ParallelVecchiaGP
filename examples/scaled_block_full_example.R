@@ -1,6 +1,6 @@
 # mpirun -n 1 ./bin/examples/Example_Parallel_Vecchia_Estimation_Prediction 
 #   --N=1000 
-#   --block_size=100 
+#   --block_count=100 
 #   --distance_scale=0.05:0.05:0.1:1.0:1.0:1.0:1.0:1.0 
 #   --nn_multiplier=500 
 #   --iTheta=1.0:0.001 
@@ -29,7 +29,7 @@ cat("Replicating C++ command with all parameters\n\n")
 cat("Step 1: Loading data with scaled block Vecchia...\n")
 cat("Parameters:\n")
 cat("  --N=1000\n")
-cat("  --block_size=100\n")
+cat("  --block_count=100\n")
 cat("  --iTheta=1.0:0.001\n")
 cat("  --kernel=univariate_matern_stationary\n")
 cat("  --seed=0\n")
@@ -52,7 +52,7 @@ data_result <- load_data(
     distance_matrix = "euclidean",
     problem_size = 1000,                      # --N=1000
     seed = 0,                                 # --seed=0
-    block_size = 100,                        # --block_size=100
+    block_count = 100,                       # --block_count=100 (number of blocks)
     dimension = "8",                          # --dim=8 (for scaled_block, use integer as string)
     data_path = "",                           # Empty for synthetic data
     distance_scale = c(0.05, 0.05, 0.1, 1.0, 1.0, 1.0, 1.0, 1.0),  # --distance_scale=0.05:0.05:0.1:1.0:1.0:1.0:1.0:1.0
@@ -91,7 +91,7 @@ model_result <- model_data(
     ub = c(10, 0.01, 0.5, 0.5, 1, 10, 10, 10, 10, 10),  # Upper bounds (10 values for 8D)
     tol = 6,                                    # --tolerance=6 (exponent, means 1e-6)
     mle_itr = 1,                               # --max_mle_iterations=1
-    block_size = 100,                           # --block_size=100
+    block_count = 100,                          # --block_count=100 (number of blocks)
     dimension = "8",                            # --dim=8 (8D for scaled_block)
     data = data_result,                        # Pass data_result to reuse VecchiaGBData and hardware from load_data
     initial_theta = c(1.0, 0.001),            # --iTheta=1.0:0.001 (variance, nugget only)
@@ -129,7 +129,7 @@ predicted_values <- predict_data(
     kernel = "univariate_matern_stationary",   # --kernel=univariate_matern_stationary
     distance_matrix = "euclidean",             # Default distance metric
     estimated_theta = estimated_theta,         # Use estimated theta from Step 2
-    block_size = 100,                           # --block_size=100
+    block_count = 100,                          # --block_count=100 (number of blocks)
     dimension = "8",                            # --dim=8 (8D for scaled_block)
     train_data = data_result,                  # Pass data_result to reuse VecchiaGBData and hardware from load_data
     test_data = NULL,                          # NULL - test locations are already in data_result from load_data

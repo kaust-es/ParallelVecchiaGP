@@ -42,7 +42,6 @@
 #ifdef USE_CUDA
 #include <cuda_runtime.h>
 #include <magma_v2.h>
-#include <kblas.h>
 #endif
 
 using namespace vecchia::estimators;

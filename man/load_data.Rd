@@ -16,7 +16,7 @@
 \usage{
 load_data(vecchia_type = "block", kernel = "univariate_matern_stationary",
 initial_theta = c(1.0, 0.5, 0.1), distance_matrix = "euclidean",
-problem_size = 2000, seed = 123, block_size = 200,
+problem_size = 2000, seed = 123, block_count = 200,
 dimension = "2D", data_path = "", distance_scale = NULL,
 nn_multiplier = NULL, conditioning_size = NULL, ncores = NULL,
 permutation = NULL, kernel_type = NULL)
@@ -51,7 +51,7 @@ permutation = NULL, kernel_type = NULL)
   \item{distance_matrix}{A string specifies the distance metric, either "euclidean" or "great_circle". Default is "euclidean".}
   \item{problem_size}{A numeric value represents the size of the problem to load.}
   \item{seed}{A numeric value specifies the seed for random number generation. Default is 123.}
-  \item{block_size}{A numeric value represents the block size for block Vecchia. Default is 200.}
+  \item{block_count}{A numeric value representing the number of blocks for block Vecchia. Default is 200.}
   \item{dimension}{A string specifies the data dimension. For scaled_block, can be an integer string (e.g., "8") or one of "2D", "3D", or "ST". For other types, must be "2D", "3D", or "ST". Default is "2D".}
   \item{data_path}{A string specifies the path for data storage. Default is "".}
   \item{distance_scale}{A numeric vector represents the distance scale vector. For scaled_block, one value per dimension. Default is NULL.}
@@ -77,11 +77,11 @@ kernel <- "univariate_matern_stationary"
 initial_theta <- c(1.0, 0.5, 0.1)
 problem_size <- 1000
 seed <- 123
-block_size <- 200
+block_count <- 200
 dimension <- "2D"
 
 data_result <- load_data(vecchia_type=vecchia_type, kernel=kernel,
 initial_theta=initial_theta, problem_size=problem_size, seed=seed,
-block_size=block_size, dimension=dimension)
+block_count=block_count, dimension=dimension)
 }
 }

@@ -28,7 +28,7 @@ RCPP_MODULE(VecchiaGB) {
                  _["distance_matrix"] = "euclidean",
                  _["problem_size"] = 2000,
                  _["seed"] = 123,
-                 _["block_size"] = 200,
+                 _["block_count"] = 200,
                  _["dimension"] = "2D",
                  _["data_path"] = "",
                  _["distance_scale"] = R_NilValue,
@@ -47,7 +47,7 @@ RCPP_MODULE(VecchiaGB) {
     model_data_defaults["ub"] = NumericVector::create(3.0, 3.0, 3.0);
     model_data_defaults["tol"] = 4.0;
     model_data_defaults["mle_itr"] = 100;
-    model_data_defaults["block_size"] = 200;
+    model_data_defaults["block_count"] = 200;
     model_data_defaults["dimension"] = "2D";
     model_data_defaults["data"] = R_NilValue;
     model_data_defaults["matrix"] = R_NilValue;
@@ -70,7 +70,7 @@ RCPP_MODULE(VecchiaGB) {
                  _["kernel"] = "univariate_matern_stationary",
                  _["distance_matrix"] = "euclidean",
                  _["estimated_theta"] = NumericVector::create(1.0, 0.5, 0.1),
-                 _["block_size"] = 200,
+                 _["block_count"] = 200,
                  _["dimension"] = "2D",
                  _["train_data"] = R_NilValue,
                  _["test_data"] = R_NilValue,

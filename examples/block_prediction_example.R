@@ -3,7 +3,7 @@
 # Replicates: ./bin/examples/Example_Parallel_Vecchia_Estimation_Prediction
 #   --train_locs=... --test_locs=... --train_data=... --test_data=...
 #   --itheta=... --kernel=UnivariateMaternStationary --conditioning_size=...
-#   --block_size=200 --cores=20 --vecchiaType=block --permutation=random
+#   --block_count=200 --cores=20 --vecchiaType=block --permutation=random
 #   --gpus=0 --dim=2D
 # (Estimation is skipped when train/test files are provided - prediction-only mode)
 
@@ -22,7 +22,7 @@ cat("  --train_locs, --test_locs, --train_data, --test_data (file paths)\n")
 cat("  --itheta (theta for prediction)\n")
 cat("  --kernel=UnivariateMaternStationary\n")
 cat("  --conditioning_size=300\n")
-cat("  --block_size=200\n")
+cat("  --block_count=200\n")
 cat("  --ncores=20\n\n")
 
 beta_str <- "0.014290"  # --itheta beta (range)
@@ -62,7 +62,7 @@ data_result <- load_data(
     distance_matrix = "euclidean",             # Default distance metric
     problem_size = 50,                         # --N=50 (matching predict_data)
     seed = 1,                                   # --seed=1 (matching C++ command)
-    block_size = 200,                           # --block_size=200
+    block_count = 200,                          # --block_count=200 (number of blocks)
     dimension = "2D",                          # --dim=2D
     data_path = "",                            # Empty means generate dummy data (we won't use it)
     conditioning_size = 300,                   # --conditioning_size=300
@@ -89,7 +89,7 @@ predicted_values <- predict_data(
     kernel = "univariate_matern_stationary",   # --kernel=UnivariateMaternStationary
     distance_matrix = "euclidean",             # --distance_metric=euclidean
     estimated_theta = prediction_theta,        # --itheta=1.5,0.014290,2.500000
-    block_size = 200,                           # --block_size=200
+    block_count = 200,                          # --block_count=200 (number of blocks)
     dimension = "2D",                           # --dim=2D
     train_data = train_data_file,              # --train_data (file path)
     test_data = test_data_file,                # --test_data (file path)
